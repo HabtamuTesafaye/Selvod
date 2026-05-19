@@ -1,0 +1,36 @@
+# SELVOD PRODUCTION STACK (TITAN v20)
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: selvod-backend
+    environment:
+      - SV_PORT=${SV_PORT}
+      - SV_DB_PATH=${SV_DB_PATH}
+      - SV_STORAGE_PATH=${SV_STORAGE_PATH}
+      - SV_STREAM_SECRET=${SV_STREAM_SECRET}
+      - SV_API_KEY=${SV_API_KEY}
+      - SV_PLAYBACK_KEY=${SV_PLAYBACK_KEY}
+      - SV_BASE_URL=${SV_BASE_URL}
+      - SV_MAX_WORKERS=${SV_MAX_WORKERS}
+    volumes:
+      - ./data:/data
+    restart: always
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: selvod-nginx
+    ports:
+      - "${SV_HTTP_PORT:-80}:80"
+      - "${SV_HTTPS_PORT:-443}:443"
+    environment:
+      - SV_STREAM_SECRET=${SV_STREAM_SECRET}
+      - SV_FRONTEND_URL=${SV_FRONTEND_URL}
+      - SV_SERVER_NAME=${SV_SERVER_NAME:-localhost}
+    volumes:
+      - ./data:/data:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    restart: always

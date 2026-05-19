@@ -1,0 +1,36 @@
+# SELVOD E2E TEST STACK (Perimeter Validation)
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: selvod-backend-test
+    environment:
+      - SV_PORT=8080
+      - SV_DB_PATH=/data/selvod.db
+      - SV_STORAGE_PATH=/data
+      - SV_STREAM_SECRET=platinum-test-secret
+      - SV_API_KEY=test-admin-key
+      - SV_PLAYBACK_KEY=test-playback-key
+      - SV_BASE_URL=https://localhost:18443
+      - SV_MAX_WORKERS=2
+    volumes:
+      - ./test_data:/data
+    restart: "no"
+
+  nginx:
+    build:
+      context: ./nginx
+    container_name: selvod-nginx-test
+    ports:
+      - "${SV_TEST_HTTP_PORT:-18080}:80"
+      - "${SV_TEST_HTTPS_PORT:-18443}:443"
+    environment:
+      - SV_STREAM_SECRET=platinum-test-secret
+      - SV_FRONTEND_URL=http://localhost:5173
+      - SV_SERVER_NAME=${SV_SERVER_NAME:-localhost}
+    volumes:
+      - ./test_data:/data:ro
+      - ./test_data/certs:/etc/nginx/certs:ro
+    depends_on:
+      - backend
+    restart: "no"

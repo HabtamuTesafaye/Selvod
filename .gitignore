@@ -1,0 +1,25 @@
+# Binaries
+bin/
+/selvod
+backend/selvod
+frontend/dist/
+
+# Data & Database
+data/
+test_data/
+backend/selvod.db
+backend/selvod.db-wal
+backend/selvod.db-shm
+
+# Frontend
+frontend/node_modules/
+frontend/.env.local
+frontend/.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env*
+!.env.example
