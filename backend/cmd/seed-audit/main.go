@@ -66,7 +66,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	hlsBase := filepath.Join(dataDir, "hls/audit-vid")
+	hlsBase := filepath.Join(dataDir, "libraries/00000000-0000-0000-0000-000000000001/videos/audit-vid/hls")
 	hlsDir := filepath.Join(hlsBase, "0")
 	os.MkdirAll(hlsDir, 0755)
 	

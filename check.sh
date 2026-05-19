@@ -78,7 +78,7 @@ rm -f test_data/selvod.db*
 chmod -R 777 test_data > /dev/null 2>&1
 
 # 3. Spin up test stack
-(docker compose -f docker-compose.test.yml up -d) > /dev/null 2>&1
+(docker compose -f docker-compose.test.yml up -d --build) > /dev/null 2>&1
 echo -e " ${BOLD}→${NC} Waiting for stack to initialize..."
 sleep 8
 

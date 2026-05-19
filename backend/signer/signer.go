@@ -15,7 +15,7 @@ type SignedURL struct {
 }
 
 type SecureSigner struct {
-	secret  string
+	secret  string // Global secret (for segment validation)
 	baseURL string
 }
 
@@ -26,12 +26,12 @@ func NewSecureSigner(secret, baseURL string) *SecureSigner {
 	}
 }
 
-// Sign generates a cryptographically bound URL using MD5 + IP Binding + Expiry.
-func (s *SecureSigner) Sign(videoID string, remoteIP string, duration time.Duration) (*SignedURL, error) {
+// Sign generates a cryptographically bound URL using MD5 + Library Scoped Secret + Expiry.
+func (s *SecureSigner) Sign(libraryID, videoID string, playbackSecret string, duration time.Duration) (*SignedURL, error) {
 	expires := time.Now().Add(duration).Unix()
-	token := s.GenerateToken(videoID, remoteIP, expires)
+	token := s.GenerateToken(libraryID, videoID, playbackSecret, expires)
 
-	fullURL := fmt.Sprintf("%s/hls/%s/%d/%s/master.m3u8", s.baseURL, token, expires, videoID)
+	fullURL := fmt.Sprintf("%s/hls/%s/%s/master.m3u8?token=%s&expires=%d", s.baseURL, libraryID, videoID, token, expires)
 
 	return &SignedURL{
 		URL:       fullURL,
@@ -41,10 +41,16 @@ func (s *SecureSigner) Sign(videoID string, remoteIP string, duration time.Durat
 	}, nil
 }
 
-// GenerateToken provides the raw MD5 hash for a given context.
-// This is used for both generation and verification.
-func (s *SecureSigner) GenerateToken(videoID string, remoteIP string, expires int64) string {
-	data := fmt.Sprintf("%s%d%s%s", s.secret, expires, remoteIP, videoID)
+// GenerateToken provides the raw MD5 hash for a given context using the library secret.
+func (s *SecureSigner) GenerateToken(libraryID, videoID string, playbackSecret string, expires int64) string {
+	data := fmt.Sprintf("%s/%s/%s/%d", playbackSecret, libraryID, videoID, expires)
+	hash := md5.Sum([]byte(data))
+	return base64.RawURLEncoding.EncodeToString(hash[:])
+}
+
+// GenerateSegmentToken generates the token for segment-level cookie validation using global secret.
+func (s *SecureSigner) GenerateSegmentToken(videoID string, expires int64) string {
+	data := fmt.Sprintf("%s/%s/%d", s.secret, videoID, expires)
 	hash := md5.Sum([]byte(data))
 	return base64.RawURLEncoding.EncodeToString(hash[:])
 }

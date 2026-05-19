@@ -6,10 +6,10 @@ import (
 )
 
 func TestSigner(t *testing.T) {
-	s := NewSecureSigner("secret", "http://localhost")
+	s := NewSecureSigner("global-secret", "http://localhost")
 	
-	// Test basic signing
-	signed, err := s.Sign("video-1", "127.0.0.1", 1*time.Hour)
+	// Test basic signing with library secret
+	signed, err := s.Sign("library-1", "video-1", "lib-secret", 1*time.Hour)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -18,9 +18,9 @@ func TestSigner(t *testing.T) {
 		t.Error("expected non-empty token")
 	}
 
-	// Test IP binding (Tokens must differ for different IPs)
-	signedOther, _ := s.Sign("video-1", "1.1.1.1", 1*time.Hour)
+	// Test dynamic key variations
+	signedOther, _ := s.Sign("library-1", "video-1", "lib-secret-diff", 1*time.Hour)
 	if signed.Token == signedOther.Token {
-		t.Error("tokens should be unique per IP")
+		t.Error("tokens should be unique per secret key")
 	}
 }
