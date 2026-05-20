@@ -7,7 +7,7 @@ export const useUploadStore = defineStore('upload', {
   }),
 
   actions: {
-    async uploadFile(file, title) {
+    async uploadFile(file, title, libraryId) {
       const tempId = Math.random().toString(36).substring(7)
       this.uploads[tempId] = {
         name: title || file.name,
@@ -19,6 +19,7 @@ export const useUploadStore = defineStore('upload', {
       const formData = new FormData()
       formData.append('file', file)
       if (title) formData.append('title', title)
+      if (libraryId) formData.append('library_id', libraryId)
 
       try {
         const video = await uploadVideo(formData, {

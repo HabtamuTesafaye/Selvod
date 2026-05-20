@@ -1,41 +1,61 @@
-# 🎨 Selvod Dashboard
+# 🎨 Selvod Dashboard SPA
 
-A premium, Vue 3 reference implementation for managing your VOD library. Built with performance and user experience as top priorities.
+A Vue 3 Single Page Application that serves as an admin console and client demo. It manages the video catalog, library structures, dynamic streaming keys, and showcases adaptive bitrate playbacks.
+
+---
 
 ## 🚀 Key Technologies
 
-- **Vue 3 (Composition API):** For reactive and maintainable components.
-- **Pinia:** Global state management used to track background uploads across routes.
-- **Tailwind CSS v4:** Cutting-edge styling with glassmorphism and modern color palettes.
-- **Yarn:** For stable, deterministic dependency management.
+*   **Vue 3 (Composition API):** Modern reactive structure.
+*   **Pinia:** Global state management for persistent background upload queues.
+*   **Tailwind CSS v4:** Layout, animations, and typography.
+*   **Hls.js & ForgePlayer:** Handles ABR segments and custom token renewal.
+*   **Axios:** Handles API calls with request/response authorization interceptors.
+
+---
 
 ## 🛠 Features
 
 ### 1. Persistent Background Uploads
-Uploads are managed by a global Pinia store. You can start an upload, navigate to your library, check other videos, and your upload progress will remain active and visible in the UI.
+Background uploads are managed by `src/stores/upload.js`. You can queue multiple files, navigate across dashboard views, and the upload progress persists in the background.
 
-### 2. ForgePlayer (Seamless HLS)
-Standard HLS players often stutter or stop when a playback token expires. **ForgePlayer** solves this by implementing a seamless swap logic:
-1.  Detects token expiration.
-2.  Fetches a fresh signed URL.
-3.  Pauses -> Swaps Source -> Seeks to last position -> Resumes.
-This happens in milliseconds, ensuring the viewer never loses their place.
+### 2. ForgePlayer (Seamless HLS Token Renewal)
+Standard video players stutter or fail when security tokens expire mid-stream. **ForgePlayer** (`src/components/ForgePlayer.vue`) intercepts expiration, requests a new signed token, updates the source, and resumes playback in milliseconds.
 
-### 3. Real-time Status & Analytics
-The dashboard provides visual feedback for:
-- **Transcode Efficiency:** How fast your hardware is processing.
-- **Storage Availability:** Live disk space monitoring.
-- **ABR Readiness:** Indicators for when 1080p/720p variants are ready.
+### 3. Library & Keys Management
+Enables creating multi-tenant libraries and generating, revoking, or regenerating keys.
 
-## 🛠 Development
+---
 
+## 💻 Local Development Setup
+
+### 1. Configure Dev Proxies
+The frontend relies on Vite's local dev server proxy configured in `vite.config.js`. It directs requests as follows:
+*   `/api` & `/health` ➡️ backend API container/server.
+*   `/hls` ➡️ Nginx HTTPS container (enforcing secure links).
+
+Create `frontend/.env` (defaults are loaded automatically) or `frontend/.env.local` to customize target hosts:
+```env
+# If Go backend runs inside Docker-Compose Local (exposed host port: 8081)
+VITE_API_TARGET=http://localhost:8081
+
+# Target for HLS media streams served by Nginx
+VITE_HLS_TARGET=https://localhost:18443
+```
+
+### 2. Run the App
 ```bash
+# Install dependencies
 yarn install
+
+# Spin up Vite Dev Server (served at http://localhost:5173)
 yarn dev
 ```
 
-## 🏗 Build for Production
+---
 
+## 🏗 Build for Production
 ```bash
 yarn build
 ```
+This outputs static assets to `frontend/dist/`, ready to be served by Nginx or your production web server.

@@ -59,7 +59,7 @@ func (p *WorkerPool) process(id string) {
 	p.hooks.Dispatch(hooks.EventTranscodeStart, v)
 
 	inputPath := filepath.Join(p.storageDir, "uploads", id+v.OriginalExt)
-	outputDir := filepath.Join(p.storageDir, "hls", id)
+	outputDir := filepath.Join(p.storageDir, "libraries", v.LibraryID, "videos", id, "hls")
 
 	slog.Info("starting transcoding", "id", id, "input", inputPath)
 

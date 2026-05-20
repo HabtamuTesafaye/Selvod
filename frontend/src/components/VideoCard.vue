@@ -1,13 +1,13 @@
 <script setup>
 import { ref } from 'vue'
-import { CheckCircle2, Clock, AlertCircle, Play, Trash2, HardDrive } from 'lucide-vue-next'
+import { CheckCircle2, Clock, AlertCircle, Play, Trash2, HardDrive, Share2, Pencil } from 'lucide-vue-next'
 import ForgePlayer from './ForgePlayer.vue'
 
 const props = defineProps({
   video: { type: Object, required: true }
 })
 
-const emit = defineEmits(['play', 'delete'])
+const emit = defineEmits(['play', 'delete', 'embed', 'edit'])
 
 const isHovered = ref(false)
 
@@ -75,18 +75,43 @@ const config = statusConfig[props.video.status] || statusConfig.pending
       </div>
 
       <div class="mt-4 pt-4 border-t border-slate-100 dark:border-[#2d3139] flex justify-between items-center">
-        <button 
-          v-if="video.status === 'completed'"
-          @click="emit('play', video.id)"
-          class="text-sm font-medium text-primary hover:text-rose-600 transition-colors cursor-pointer"
-        >
-          Watch Video
-        </button>
-        <span v-else class="text-sm text-slate-400 dark:text-slate-500">Processing...</span>
+        <div class="flex items-center gap-2">
+          <button 
+            v-if="video.status === 'completed'"
+            @click="emit('play', video.id)"
+            class="text-sm font-medium text-primary hover:text-rose-600 transition-colors cursor-pointer"
+          >
+            Watch
+          </button>
+          <span v-else class="text-sm text-slate-400 dark:text-slate-500">Processing...</span>
+
+          <button 
+            v-if="video.status === 'completed'"
+            @click="emit('embed', video.id)"
+            class="p-1.5 text-slate-400 dark:text-slate-500 hover:text-primary rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Embed Code"
+          >
+            <Share2 class="w-4 h-4" />
+          </button>
+        </div>
         
-        <button @click="emit('delete', video.id)" class="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer">
-          <Trash2 class="w-4 h-4" />
-        </button>
+        <div class="flex items-center gap-1">
+          <button 
+            @click="emit('edit', video)" 
+            class="p-1.5 text-slate-400 dark:text-slate-500 hover:text-primary rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            title="Edit Video"
+          >
+            <Pencil class="w-4 h-4" />
+          </button>
+          
+          <button 
+            @click="emit('delete', video.id)" 
+            class="p-1.5 text-slate-400 dark:text-slate-500 hover:text-rose-600 dark:hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors cursor-pointer"
+            title="Delete Video"
+          >
+            <Trash2 class="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   </div>

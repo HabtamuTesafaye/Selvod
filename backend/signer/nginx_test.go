@@ -11,16 +11,17 @@ import (
 
 func TestIndependentNginxCompatibility(t *testing.T) {
 	// GIVEN: A known context
-	secret := "test-secret"
+	globalSecret := "global-secret"
+	playbackSecret := "lib-secret"
 	videoID := "vid-123"
-	remoteIP := "127.0.0.1"
+	libraryID := "lib-abc"
 	
-	s := NewSecureSigner(secret, "http://localhost")
-	signed, _ := s.Sign(videoID, remoteIP, 1*time.Hour)
+	s := NewSecureSigner(globalSecret, "http://localhost")
+	signed, _ := s.Sign(libraryID, videoID, playbackSecret, 1*time.Hour)
 
-	// WHEN: We MANUALLY re-implement the Nginx formula (independent of the signer package)
-	// Logic: secret + expires + remote_addr + video_id
-	formula := fmt.Sprintf("%s%d%s%s", secret, signed.Expires, remoteIP, videoID)
+	// WHEN: We MANUALLY re-implement the Nginx/Go multi-library formula
+	// Logic: secret + "/" + library_id + "/" + video_id + "/" + expires
+	formula := fmt.Sprintf("%s/%s/%s/%d", playbackSecret, libraryID, videoID, signed.Expires)
 	hash := md5.Sum([]byte(formula))
 	
 	// Nginx uses RawURLEncoding (no padding, URL-safe characters)
@@ -31,9 +32,9 @@ func TestIndependentNginxCompatibility(t *testing.T) {
 		t.Errorf("CRITICAL INCOMPATIBILITY: Backend token (%s) does not match Nginx formula (%s)", signed.Token, expectedToken)
 	}
 
-	// Verify the URL structure follows the Nginx rewrite requirement
-	// Format: /hls/<token>/<expires>/<id>/master.m3u8
-	requiredPath := fmt.Sprintf("/hls/%s/%d/%s/", signed.Token, signed.Expires, videoID)
+	// Verify the URL structure follows the new query param structure
+	// Format: /hls/<library_id>/<video_id>/master.m3u8?token=<token>&expires=<expires>
+	requiredPath := fmt.Sprintf("/hls/%s/%s/master.m3u8?token=%s&expires=%d", libraryID, videoID, signed.Token, signed.Expires)
 	if !strings.Contains(signed.URL, requiredPath) {
 		t.Errorf("URL structure mismatch! Required path part: %s, Got: %s", requiredPath, signed.URL)
 	}

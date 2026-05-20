@@ -4,6 +4,11 @@ limit_conn_zone $binary_remote_addr zone=addr_limit:10m;
 
 server {
     listen 80;
+    server_name $SV_SERVER_NAME;
+    return 301 https://$host$request_uri;
+}
+
+server {
     listen 443 ssl;
     server_name $SV_SERVER_NAME;
 
@@ -30,42 +35,72 @@ server {
 
     root /data;
 
-    location /hls/ {
+    # 1. Manifest file authentication & serving
+    location ~ ^/hls/(?<lib_id>[^/]+)/(?<vid_id>[^/]+)/(?<m3u8_file>[^/]+\.m3u8)$ {
         limit_except GET HEAD { deny all; }
         
-        set $token "";
-        set $expires "";
-        set $video_id "";
-        set $filename "";
+        auth_request /api/v1/auth/manifest;
+        auth_request_set $auth_status $upstream_http_x_auth_status;
+        auth_request_set $saved_cookie $upstream_http_set_cookie;
+        error_page 500 = @handle_auth_error;
+        add_header Set-Cookie $saved_cookie;
 
-        if ($uri ~ ^/hls/([^/]+)/([^/]+)/([^/]+)/(.*)$) {
-            set $token $1;
-            set $expires $2;
-            set $video_id $3;
-            set $filename $4;
+        rewrite ^/hls/([^/]+)/([^/]+)/([^/]+)$ /libraries/$1/videos/$2/hls/$3 break;
+
+        add_header 'Access-Control-Allow-Origin' '$SV_FRONTEND_URL' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'Range, Authorization' always;
+
+        types {
+            application/vnd.apple.mpegurl m3u8;
+        }
+    }
+
+    # 2 & 3. Variant Manifest and TS segment authentication & serving via cookie
+    location ~ ^/hls/(?<lib_id>[^/]+)/(?<vid_id>[^/]+)/(?<variant>[0-9]+)/(?<file>[^/]+\.(m3u8|ts))$ {
+        limit_except GET HEAD { deny all; }
+
+        set $cookie_val "";
+        if ($http_cookie ~* "sv_session_[^=]+=\"?([^\";]+)\"?") {
+            set $cookie_val $1;
         }
 
-        secure_link $token,$expires;
-        secure_link_md5 "$SV_STREAM_SECRET$expires$remote_addr$video_id";
-
-        if ($token = "expired-token") { return 410; }
+        secure_link $cookie_val;
+        secure_link_md5 "$SV_STREAM_SECRET/$vid_id/$secure_link_expires";
 
         if ($secure_link = "") { return 403; }
         if ($secure_link = "0") { return 410; }
 
-        # If it matches the HLS Hashing pattern, rewrite to internal path
-        if ($token != "") {
-            rewrite ^/hls/[^/]+/[^/]+/[^/]+/(.*)$ /hls/$video_id/$filename break;
-        }
+        rewrite ^/hls/([^/]+)/([^/]+)/([^/]+)/([^/]+)$ /libraries/$1/videos/$2/hls/$3/$4 break;
 
         add_header 'Access-Control-Allow-Origin' '$SV_FRONTEND_URL' always;
+        add_header 'Access-Control-Allow-Credentials' 'true' always;
         add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
         add_header 'Access-Control-Allow-Headers' 'Range, Authorization' always;
-        
+
         types {
             application/vnd.apple.mpegurl m3u8;
             video/mp2t ts;
         }
+    }
+
+    # 3.5. Intercept auth error and return correct status
+    location @handle_auth_error {
+        if ($auth_status = "410") { return 410; }
+        return 500;
+    }
+
+    # 4. Auth manifest subrequest proxy endpoint
+    location = /api/v1/auth/manifest {
+        internal;
+        proxy_pass http://backend:8080;
+        proxy_pass_request_body off;
+        proxy_set_header Content-Length "";
+        proxy_set_header X-Original-URI $request_uri;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
     location /api/ {

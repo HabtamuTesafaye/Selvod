@@ -28,13 +28,15 @@ type Server struct {
 
 func NewServer(s store.Store, st storage.Provider, sig *signer.SecureSigner, q *queue.WorkerPool, h *hooks.Registry, t transcoder.Transcoder, storageDir, apiKey, playbackKey string) *Server {
 	vh := &handler.VideoHandler{
-		Store:      s,
-		Storage:    st,
-		Signer:     sig,
-		Queue:      q,
-		Hooks:      h,
-		Transcoder: t,
-		StorageDir: storageDir,
+		Store:        s,
+		Storage:      st,
+		Signer:       sig,
+		Queue:        q,
+		Hooks:        h,
+		Transcoder:   t,
+		StorageDir:   storageDir,
+		Cache:        handler.NewLibraryCache(),
+		GlobalSecret: playbackKey,
 	}
 
 	srv := &Server{
@@ -55,16 +57,31 @@ func (s *Server) routes() {
 	s.router.Use(customMiddleware.Logger)
 	s.router.Use(middleware.Throttle(50)) 
 
+	// Public authorization endpoint for Nginx subrequest authentication
+	s.router.Get("/api/v1/auth/manifest", s.handler.HandleAuthManifest)
+
 	s.router.Route("/api/v1", func(r chi.Router) {
-		r.Use(customMiddleware.ScopedAuth(s.apiKey, s.playbackKey))
+		r.Use(customMiddleware.ScopedAuth(s.apiKey, s.playbackKey, s.handler.Store))
 
 		r.Get("/videos/{id}/stream", s.handler.HandleSign)
+		r.Get("/videos/{id}/embed", s.handler.HandleEmbed)
 
 		r.Group(func(r chi.Router) {
 			r.Post("/videos", s.handler.HandleUpload)
 			r.Get("/videos", s.handler.HandleList)
 			r.Get("/videos/{id}", s.handler.HandleGet)
+			r.Patch("/videos/{id}", s.handler.HandleUpdateVideo)
 			r.Delete("/videos/{id}", s.handler.HandleDelete)
+
+			// Library management endpoints
+			r.Get("/libraries", s.handler.HandleListLibraries)
+			r.Post("/libraries", s.handler.HandleCreateLibrary)
+			r.Patch("/libraries/{id}", s.handler.HandleUpdateLibrary)
+			r.Get("/libraries/{id}/keys", s.handler.HandleListLibraryKeys)
+			r.Post("/libraries/{id}/keys", s.handler.HandleCreateLibraryKey)
+			r.Delete("/libraries/{id}/keys/{key_id}", s.handler.HandleDeleteLibraryKey)
+			r.Post("/libraries/{id}/keys/{key_id}/revoke", s.handler.HandleRevokeLibraryKey)
+			r.Post("/libraries/{id}/keys/{key_id}/regenerate", s.handler.HandleRegenerateLibraryKey)
 		})
 	})
 
