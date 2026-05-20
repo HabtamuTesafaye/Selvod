@@ -10,27 +10,47 @@
 
 ## 🏗 System Architecture
 
-Selvod uses a decoupled architecture separating heavy media processing from secure client delivery:
+Selvod uses a decoupled architecture separating heavy media processing from secure client delivery. 
 
 ```mermaid
 graph TD
-    subgraph "Frontend Layer"
-        Client[Vue 3 SPA]
+    subgraph "Client Layer"
+        Client[Vue 3 SPA / Iframe Embed]
     end
 
-    subgraph "Logic Layer (Go)"
-        API[Chi API] --> Queue[Worker Pool]
-        Queue --> Transcoder[FFmpeg Engine]
-        Transcoder --> Metadata[(SQLite WAL)]
+    subgraph "Delivery Layer (Nginx Edge)"
+        Nginx[Nginx Sidecar]
     end
 
-    subgraph "Delivery Layer (Nginx)"
-        Nginx[Nginx Secure Link] -->|Verified Stream| Client
+    subgraph "Application Layer (Go Backend)"
+        API[Chi API Router]
+        Queue[Worker Queue]
+        Transcoder[FFmpeg Engine]
     end
 
-    API -->|Generate Token| Client
-    Transcoder -->|HLS Segments| Disk[Local Storage]
-    Disk --> Nginx
+    subgraph "Storage Layer"
+        DB[(SQLite WAL Store)]
+        Disk[(Shared Disk Volume)]
+    end
+
+    %% Upload & Transcoding Flow
+    Client -->|1. Upload Raw Media| API
+    API -->|2. Register Job| DB
+    API -->|3. Dispatch Task| Queue
+    Queue -->|4. Process Video| Transcoder
+    Transcoder -->|5. Read / Write metadata| DB
+    Transcoder -->|6. Write HLS Playlists & Segments| Disk
+
+    %% Playback Authorization & Delivery Flow
+    Client -->|7. Request Playback Token| API
+    API -->|8. Verify Library Key & Return Signed URL| Client
+    Client -->|9. GET master.m3u8 with token| Nginx
+    Nginx -->|10. Subrequest validation /auth/manifest| API
+    API -->|11. Verify HMAC Signature & Set Session Cookie| Nginx
+    Nginx -->|12. Return Manifest & Cookie| Client
+    Client -->|13. Request segments with Cookie| Nginx
+    Nginx -->|14. Local secure_link verification bypasses Go| Disk
+    Nginx -->|15. Stream TS Chunks| Client
 ```
 
 ---
