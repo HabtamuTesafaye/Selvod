@@ -61,7 +61,7 @@ func (s *Server) routes() {
 	s.router.Get("/api/v1/auth/manifest", s.handler.HandleAuthManifest)
 
 	s.router.Route("/api/v1", func(r chi.Router) {
-		r.Use(customMiddleware.ScopedAuth(s.apiKey, s.playbackKey))
+		r.Use(customMiddleware.ScopedAuth(s.apiKey, s.playbackKey, s.handler.Store))
 
 		r.Get("/videos/{id}/stream", s.handler.HandleSign)
 		r.Get("/videos/{id}/embed", s.handler.HandleEmbed)

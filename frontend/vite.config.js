@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { resolve } from 'path'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
@@ -11,6 +12,14 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [vue()],
+    build: {
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, 'index.html'),
+          embed: resolve(__dirname, 'embed.html'),
+        },
+      },
+    },
     server: {
       proxy: {
         // /api and /health go directly to the Go backend (port from frontend/.env VITE_API_TARGET)
@@ -33,4 +42,3 @@ export default defineConfig(({ mode }) => {
     }
   }
 })
-

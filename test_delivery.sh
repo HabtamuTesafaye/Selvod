@@ -46,31 +46,31 @@ EXPIRES=$(echo "$SIGNED_JSON" | grep -oE '"expires":[0-9]+' | cut -d':' -f2)
 rm -f /tmp/cookies.txt
 
 echo "[TEST] Delivery: Master Manifest (200 OK & Cookie Check)..."
-STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" -c /tmp/cookies.txt "$EDGE_URL/hls/default-library/$VIDEO_ID/master.m3u8?token=$TOKEN&expires=$EXPIRES")
+STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" -c /tmp/cookies.txt "$EDGE_URL/hls/00000000-0000-0000-0000-000000000001/$VIDEO_ID/master.m3u8?token=$TOKEN&expires=$EXPIRES")
 if [ "$STATUS" == "200" ]; then echo " PASSED"; else echo " FAILED ($STATUS)"; exit 1; fi
 
 echo "[TEST] Delivery: Variant Playlist (200 OK)..."
-STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" -b /tmp/cookies.txt "$EDGE_URL/hls/default-library/$VIDEO_ID/0/index.m3u8?token=$TOKEN&expires=$EXPIRES")
+STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" -b /tmp/cookies.txt "$EDGE_URL/hls/00000000-0000-0000-0000-000000000001/$VIDEO_ID/0/index.m3u8?token=$TOKEN&expires=$EXPIRES")
 if [ "$STATUS" == "200" ]; then echo " PASSED"; else echo " FAILED ($STATUS)"; exit 1; fi
 
 echo "[TEST] Delivery: Video Segment (200 OK via Cookie)..."
-STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" -b /tmp/cookies.txt "$EDGE_URL/hls/default-library/$VIDEO_ID/0/001.ts")
+STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" -b /tmp/cookies.txt "$EDGE_URL/hls/00000000-0000-0000-0000-000000000001/$VIDEO_ID/0/001.ts")
 if [ "$STATUS" == "200" ]; then echo " PASSED"; else echo " FAILED ($STATUS)"; exit 1; fi
 
 # 5. Negative Test: 410 Gone (Expired Token)
 PAST_EXPIRES=$(($(date +%s) - 3600))
 echo "[TEST] Enforcement: Expired Token (410 Gone)..."
-STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" "$EDGE_URL/hls/default-library/$VIDEO_ID/master.m3u8?token=expired-token&expires=$PAST_EXPIRES")
+STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" "$EDGE_URL/hls/00000000-0000-0000-0000-000000000001/$VIDEO_ID/master.m3u8?token=expired-token&expires=$PAST_EXPIRES")
 if [ "$STATUS" == "410" ]; then echo " PASSED"; else echo " FAILED ($STATUS)"; exit 1; fi
 
 # 6. Negative Test: Invalid Token
 echo "[TEST] Enforcement: Invalid Token (403 Forbidden)..."
-STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" "$EDGE_URL/hls/default-library/$VIDEO_ID/master.m3u8?token=badtoken&expires=$EXPIRES")
+STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" "$EDGE_URL/hls/00000000-0000-0000-0000-000000000001/$VIDEO_ID/master.m3u8?token=badtoken&expires=$EXPIRES")
 if [ "$STATUS" == "403" ]; then echo " PASSED"; else echo " FAILED ($STATUS)"; exit 1; fi
 
 # 7. Negative Test: Path Traversal / Direct Access without Token
 echo "[TEST] Enforcement: Direct Path Access (401 Unauthorized)..."
-STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" "$EDGE_URL/hls/default-library/$VIDEO_ID/master.m3u8")
+STATUS=$(curl -k -s -o /dev/null -w "%{http_code}" "$EDGE_URL/hls/00000000-0000-0000-0000-000000000001/$VIDEO_ID/master.m3u8")
 if [ "$STATUS" == "401" ] || [ "$STATUS" == "403" ] || [ "$STATUS" == "404" ]; then echo " PASSED"; else echo " FAILED ($STATUS)"; exit 1; fi
 
 echo ""

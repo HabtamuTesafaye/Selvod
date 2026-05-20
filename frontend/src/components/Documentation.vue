@@ -15,6 +15,7 @@ const frontendTab = ref('vue')
 const sections = [
   { id: 'overview', title: 'Overview' },
   { id: 'auth', title: 'Authentication' },
+  { id: 'embed', title: 'Embed Player (Lightweight)' },
   { id: 'backend', title: 'Server-Side Signing' },
   { id: 'frontend', title: 'Frontend Integration' },
   { id: 'api', title: 'REST API Reference' }
@@ -323,7 +324,32 @@ export default function VideoPlayer({ signedUrl }) {
                 <h3 class="font-semibold text-gray-900 dark:text-white">Playback Secret</h3>
               </div>
               <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Used by your backend to sign video URLs. Never expose this to the frontend.</p>
-              <code class="block bg-gray-900 text-gray-200 p-3 rounded-lg text-xs break-all border border-gray-700 font-mono">{{ playbackKey || 'Not configured' }}</code>
+            </div>
+          </div>
+        </section>
+
+        <!-- Standalone Embed Player -->
+        <section id="embed" class="space-y-6 scroll-mt-8">
+          <h2 class="text-2xl font-bold text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-800 pb-2">Embed Player (Lightweight & Standalone)</h2>
+          <p class="text-gray-600 dark:text-gray-400">
+            Selvod includes a high-performance standalone player that allows clients to play videos with just their <strong>Library Playback Key</strong> and <strong>Video ID</strong>.
+          </p>
+          <div class="bg-gray-50 dark:bg-gray-850 rounded-xl p-6 border border-gray-250 dark:border-gray-800 space-y-4">
+            <h4 class="font-bold text-gray-800 dark:text-gray-200">How to Embed with Iframe:</h4>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              Inject the player straight into your website or CMS as an iframe. All token authentication, playback validation, HLS stream buffering, and token renewals are handled automatically.
+            </p>
+            <pre class="bg-gray-900 text-emerald-400 p-4 rounded-xl text-xs overflow-x-auto border border-gray-800 font-mono"><code>&lt;iframe
+  src="/embed.html?videoId=YOUR_VIDEO_ID&amp;key=YOUR_LIBRARY_PLAYBACK_KEY"
+  width="100%"
+  height="100%"
+  frameborder="0"
+  allow="autoplay; fullscreen"
+  allowfullscreen
+&gt;&lt;/iframe&gt;</code></pre>
+            <div class="p-4 bg-indigo-50 dark:bg-indigo-900/10 rounded-lg border border-indigo-100 dark:border-indigo-800/40 text-xs text-indigo-700 dark:text-indigo-300 space-y-2">
+              <strong class="block text-indigo-900 dark:text-indigo-200">🔒 Library Scoping Isolation Guarantees:</strong>
+              <p>Clients can only access videos in libraries where they have an active key. A key scoped to Library A will return <code class="bg-indigo-100 dark:bg-indigo-900/45 px-1.5 py-0.5 rounded font-bold">403 Forbidden</code> if attempting to play a video from Library B, even if the video ID is valid.</p>
             </div>
           </div>
         </section>
