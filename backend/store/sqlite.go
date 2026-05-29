@@ -122,7 +122,9 @@ func (s *SQLiteStore) migrate() error {
 	s.db.QueryRow(`SELECT COUNT(*) FROM library_keys WHERE library_id = ?`, DefaultLibraryID).Scan(&keyCount)
 	if keyCount == 0 {
 		keyBytes := make([]byte, 16)
-		rand.Read(keyBytes)
+		if _, err := rand.Read(keyBytes); err != nil {
+			return fmt.Errorf("failed to generate random key bytes: %w", err)
+		}
 		secret := hex.EncodeToString(keyBytes)
 		if _, err := s.db.Exec(`INSERT INTO library_keys (id, library_id, key_name, playback_secret, is_active, created_at) VALUES (?, ?, 'Default Playback Key', ?, 1, ?)`, uuid.New().String(), DefaultLibraryID, secret, time.Now()); err != nil {
 			return fmt.Errorf("failed to seed default library key: %w", err)
@@ -334,6 +336,10 @@ func (s *SQLiteStore) RegenerateLibraryKey(ctx context.Context, id string, newSe
 func (s *SQLiteStore) DeleteLibraryKey(ctx context.Context, id string) error {
 	_, err := s.db.ExecContext(ctx, "DELETE FROM library_keys WHERE id = ?", id)
 	return err
+}
+
+func (s *SQLiteStore) Close() error {
+	return s.db.Close()
 }
 
 func (s *SQLiteStore) UpdateLibrary(ctx context.Context, l *Library) error {

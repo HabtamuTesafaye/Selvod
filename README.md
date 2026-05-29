@@ -16,24 +16,14 @@ Selvod uses a decoupled architecture separating heavy media processing from secu
 
 ### 📸 Demo Gallery
 
-<table>
-  <tr>
-    <td align="center" width="50%">
-      <img src="demos/demo1.png" alt="Demo 1" width="100%">
-    </td>
-    <td align="center" width="50%">
-      <img src="demos/demo2.png" alt="Demo 2" width="100%">
-    </td>
-  </tr>
-  <tr>
-    <td align="center" width="50%">
-      <img src="demos/demo3.png" alt="Demo 3" width="100%">
-    </td>
-    <td align="center" width="50%">
-      <img src="demos/demo4.png" alt="Demo 4" width="100%">
-    </td>
-  </tr>
-</table>
+<div style="display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 12px 0; border-radius: 12px;">
+  <img src="demos/demo1.png" alt="Demo 1" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+  <img src="demos/demo2.png" alt="Demo 2" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+  <img src="demos/demo3.png" alt="Demo 3" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+  <img src="demos/demo4.png" alt="Demo 4" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+  <img src="demos/demo5.png" alt="Demo 5" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+</div>
+<p style="font-size: 14px; color: #888; margin-top: 8px;">← Scroll or swipe to browse →</p>
 
 </div>
 
@@ -89,6 +79,7 @@ Deploy with absolute verification and automated production key generation:
 ```
 
 This script:
+
 1. Verifies that high-entropy secrets exist (and auto-generates them if defaults are found).
 2. Runs the system integrity and verification checks (`./check.sh`).
 3. Launches the production container stack.
@@ -100,45 +91,53 @@ This script:
 Local testing requires coordination between the frontend dev server, the Go backend API, and Nginx (handling the cookie-based HLS secure links).
 
 ### 1. Prerequisites
+
 Ensure you have the following installed locally:
-*   **Go** (1.23+)
-*   **Node.js & Yarn**
-*   **Docker & Docker Compose**
-*   **FFmpeg / ffprobe** (if running bare-metal)
+
+- **Go** (1.23+)
+- **Node.js & Yarn**
+- **Docker & Docker Compose**
+- **FFmpeg / ffprobe** (if running bare-metal)
 
 ### 2. Run via Automated Local Script (Recommended)
+
 You can automate certificate generation and stack launch in one command:
+
 ```bash
 ./deploy_local.sh
 ```
 
 Alternatively, you can perform these steps manually:
 
-*   **Set Up Local SSL Certificates:**
-    ```bash
-    ./setup_certs.sh
-    ```
-*   **Run via Docker Compose:**
-    ```bash
+- **Set Up Local SSL Certificates:**
+  ```bash
+  ./setup_certs.sh
+  ```
+- **Run via Docker Compose:**
+  `bash
     docker compose -f docker-compose.local.yml up --build
-    ```
-Under this setup:
-*   **Backend API** is exposed on `http://localhost:8081`.
-*   **Nginx Edge** is exposed on `http://localhost:18080` (HTTP) and `https://localhost:18443` (HTTPS).
-*   **Database & Media assets** are mounted locally in `./data`.
+    `
+  Under this setup:
+- **Backend API** is exposed on `http://localhost:8081`.
+- **Nginx Edge** is exposed on `http://localhost:18080` (HTTP) and `https://localhost:18443` (HTTPS).
+- **Database & Media assets** are mounted locally in `./data`.
 
 Now run the frontend development server:
+
 ```bash
 cd frontend
 yarn install
 yarn dev
 ```
-*   The frontend dev server runs at `http://localhost:5173`.
-*   Vite config proxies `/api` and `/health` requests to `http://localhost:8081` (backend).
-*   Vite config proxies `/hls` requests to `https://localhost:18443` (Nginx Edge) while allowing self-signed certificates (`secure: false`).
+
+- The frontend dev server runs at `http://localhost:5173`.
+- Vite config proxies `/api` and `/health` requests to `http://localhost:8081` (backend).
+- Vite config proxies `/hls` requests to `https://localhost:18443` (Nginx Edge) while allowing self-signed certificates (`secure: false`).
 
 ### 4. Option B: Run Go Backend Bare-Metal
+
 If you prefer running the Go compiler locally for instant updates:
+
 ```bash
 # Generate self-signed certs first
 ./setup_certs.sh
@@ -151,10 +150,12 @@ go run ./cmd/selvod
 > [!NOTE]
 > Running Go bare-metal binds it to port `8080` instead of the Docker mapped port `8081`.
 > You must create `frontend/.env.local` to tell Vite where to proxy requests:
+>
 > ```env
 > VITE_API_TARGET=http://localhost:8080
 > VITE_HLS_TARGET=https://localhost:18443
 > ```
+>
 > And run Nginx locally or map the port so the frontend can retrieve HLS segments.
 
 ---
@@ -164,33 +165,41 @@ go run ./cmd/selvod
 Selvod implements three levels of validation:
 
 ### 1. Backend Unit Tests
+
 Validates logic, stores, and signers.
+
 ```bash
 cd backend
 go test ./...
 ```
 
 ### 2. Cryptographic Security Auditing
+
 Verifies that signatures do not suffer from token drift and maintain strict cross-tenant isolation.
+
 ```bash
 cd backend
 go run ./cmd/security-audit/main.go
 ```
 
 ### 3. E2E Live Perimeter Integration Tests (Absolute Veracity)
+
 Runs a full E2E simulation using a temporary isolated Docker environment:
+
 ```bash
 ./check.sh
 ```
+
 What `check.sh` does under the hood:
+
 1.  Generates mock certificates and copies them to `test_data/certs`.
 2.  Seeds a test SQLite database containing a default library and active playback keys (`seed-audit`).
 3.  Launches a test container stack via `docker-compose.test.yml`.
 4.  Executes `./test_delivery.sh` which checks:
-    *   **HTTPS Redirection:** Confirms HTTP redirects to HTTPS.
-    *   **Auth Scoping:** Verifies Playback Keys can request streams but cannot invoke admin endpoints.
-    *   **Stream Authorization:** Requests the master manifest, variant playlists, and video segments to ensure cookies are set and validated properly.
-    *   **Token Enforcement:** Tests that expired, malformed, or missing tokens return `410 Gone` and `403 Forbidden` statuses.
+    - **HTTPS Redirection:** Confirms HTTP redirects to HTTPS.
+    - **Auth Scoping:** Verifies Playback Keys can request streams but cannot invoke admin endpoints.
+    - **Stream Authorization:** Requests the master manifest, variant playlists, and video segments to ensure cookies are set and validated properly.
+    - **Token Enforcement:** Tests that expired, malformed, or missing tokens return `410 Gone` and `403 Forbidden` statuses.
 5.  Tears down and deletes `test_data`.
 
 ---
@@ -202,17 +211,20 @@ What `check.sh` does under the hood:
 > Under no circumstances should default local environment keys be committed to source control or reused in live production environments. Doing so allows malicious actors to sign arbitrary playbacks, gain administrative upload capabilities, or compromise server directories.
 
 To transition to production safely:
+
 1.  **Generate High-Entropy Secrets:**
+
     ```bash
     # Stream Signer Secret (used by Nginx and backend to validate cookie segments)
     openssl rand -hex 32
-    
+
     # Master Admin API Key (full access to uploads, deletions, and library management)
     openssl rand -hex 32
-    
+
     # Playback Scoped Key (only allowed to generate signed URLs)
     openssl rand -hex 32
     ```
+
 2.  Inject these values securely into your environment variables or secret manager (`SV_STREAM_SECRET`, `SV_API_KEY`, `SV_PLAYBACK_KEY`).
 3.  Ensure your firewall blocks external access to the Go backend port (default: `8080`), forcing all client traffic to go through the hardened Nginx delivery container.
 
@@ -224,11 +236,11 @@ Selvod uses **library-scoped playback keys** to isolate access. Each library has
 
 ### Authentication Model
 
-| Key Type | Scope | Use Case |
-| :--- | :--- | :--- |
-| `SV_API_KEY` (Admin) | Full access to all endpoints | Server-side admin panel, uploading, deleting |
-| `SV_PLAYBACK_KEY` (Global Playback) | `/stream` endpoint only, all libraries | Trusted internal services |
-| **Library Playback Key** | `/stream` endpoint only, **single library** | Client apps, third-party integrations |
+| Key Type                            | Scope                                       | Use Case                                     |
+| :---------------------------------- | :------------------------------------------ | :------------------------------------------- |
+| `SV_API_KEY` (Admin)                | Full access to all endpoints                | Server-side admin panel, uploading, deleting |
+| `SV_PLAYBACK_KEY` (Global Playback) | `/stream` endpoint only, all libraries      | Trusted internal services                    |
+| **Library Playback Key**            | `/stream` endpoint only, **single library** | Client apps, third-party integrations        |
 
 ### Option 1: Embed Player (Recommended for Websites)
 
@@ -246,6 +258,7 @@ Selvod ships a built-in embed player at `/embed.html`. Embed it as an iframe:
 ```
 
 The embed player automatically:
+
 - Authenticates using the library key as a Bearer token
 - Loads the HLS stream with adaptive bitrate
 - Refreshes tokens silently at 75% of their lifetime
@@ -256,12 +269,14 @@ The embed player automatically:
 For custom player implementations, use the REST API directly:
 
 **Step 1: Get a signed stream URL**
+
 ```bash
 curl -H "Authorization: Bearer YOUR_LIBRARY_PLAYBACK_KEY" \
      https://vod.example.com/api/v1/videos/VIDEO_ID/stream
 ```
 
 **Response:**
+
 ```json
 {
   "url": "https://vod.example.com/hls/{lib_id}/{vid_id}/master.m3u8?token=xxx&expires=1234567890",
@@ -287,11 +302,10 @@ curl -H "Authorization: Bearer YOUR_LIBRARY_PLAYBACK_KEY" \
 
 ## 📖 Component Map
 
-| Module | Description | Location |
-| :--- | :--- | :--- |
-| **Backend** | Go API Router, Worker Queue, SQLite WAL store, Webhook dispatches, and FFmpeg wrapper. | [`/backend`](./backend/README.md) |
-| **Frontend** | Vue 3 Dashboard, Pinia Upload state, and ForgePlayer. | [`/frontend`](./frontend/README.md) |
-| **Nginx** | Reverse proxy, SSL termination, and Secure Link MD5 cookie check. | [`/nginx`](./nginx/README.md) |
+| Module       | Description                                                                            | Location                            |
+| :----------- | :------------------------------------------------------------------------------------- | :---------------------------------- |
+| **Backend**  | Go API Router, Worker Queue, SQLite WAL store, Webhook dispatches, and FFmpeg wrapper. | [`/backend`](./backend/README.md)   |
+| **Frontend** | Vue 3 Dashboard, Pinia Upload state, and ForgePlayer.                                  | [`/frontend`](./frontend/README.md) |
+| **Nginx**    | Reverse proxy, SSL termination, and Secure Link MD5 cookie check.                      | [`/nginx`](./nginx/README.md)       |
 
 ---
-© 2026 Selvod Open Source Project. Designed for speed, built for scale.

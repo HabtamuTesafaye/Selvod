@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/selvod/selvod/hooks"
@@ -17,6 +18,7 @@ type WorkerPool struct {
 	hooks      *hooks.Registry
 	storageDir string
 	tasks      chan string
+	wg         sync.WaitGroup
 }
 
 func NewWorkerPool(s store.Store, t transcoder.Transcoder, h *hooks.Registry, storageDir string, workers int) *WorkerPool {
@@ -29,9 +31,15 @@ func NewWorkerPool(s store.Store, t transcoder.Transcoder, h *hooks.Registry, st
 	}
 
 	for i := 0; i < workers; i++ {
+		p.wg.Add(1)
 		go p.worker()
 	}
 	return p
+}
+
+func (p *WorkerPool) Stop() {
+	close(p.tasks)
+	p.wg.Wait()
 }
 
 func (p *WorkerPool) Enqueue(id string) {
@@ -39,13 +47,15 @@ func (p *WorkerPool) Enqueue(id string) {
 }
 
 func (p *WorkerPool) worker() {
+	defer p.wg.Done()
 	for id := range p.tasks {
 		p.process(id)
 	}
 }
 
 func (p *WorkerPool) process(id string) {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+	defer cancel()
 	v, err := p.meta.Get(ctx, id)
 	if err != nil || v == nil {
 		slog.Error("failed to fetch video for transcoding", "id", id, "error", err)

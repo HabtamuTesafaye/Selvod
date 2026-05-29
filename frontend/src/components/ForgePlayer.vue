@@ -62,7 +62,9 @@ const initPlayer = async () => {
     const streamUrl = resolveStreamUrl(data.url)
     
     if (Hls.isSupported()) {
-      hls = new Hls()
+      hls = new Hls({
+        xhrSetup: (xhr) => { xhr.withCredentials = true }
+      })
       hls.loadSource(streamUrl)
       hls.attachMedia(videoRef.value)
       
@@ -216,7 +218,6 @@ watch(() => props.isHovered, (newVal) => {
 
 <template>
   <div class="relative w-full aspect-video bg-black rounded-lg overflow-hidden group font-sans">
-    
     <!-- Video element hidden if error occurs -->
     <video
       v-show="!error"
@@ -231,54 +232,107 @@ watch(() => props.isHovered, (newVal) => {
       @canplay="handleCanPlay"
       @waiting="handleWaiting"
       @playing="handlePlaying"
-    ></video>
+    />
 
     <!-- Audio visualizer overlay -->
-    <div v-if="isAudioOnly && !error" class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-[#1a103c] to-slate-950 text-white z-0 p-6">
+    <div
+      v-if="isAudioOnly && !error"
+      class="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 via-[#1a103c] to-slate-950 text-white z-0 p-6"
+    >
       <div class="w-20 h-20 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center mb-4 shadow-lg shadow-primary/5 animate-pulse">
-        <svg class="w-10 h-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        <svg
+          class="w-10 h-10 text-primary"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+          />
         </svg>
       </div>
       <span class="text-sm font-semibold tracking-wide text-slate-200">Audio Broadcast</span>
       <div class="flex items-center gap-1.5 mt-4 h-6">
-        <span class="w-1 bg-primary rounded-full animate-bounce" style="height: 60%; animation-duration: 0.8s;"></span>
-        <span class="w-1 bg-primary rounded-full animate-bounce" style="height: 100%; animation-duration: 1.1s;"></span>
-        <span class="w-1 bg-primary rounded-full animate-bounce" style="height: 40%; animation-duration: 0.7s;"></span>
-        <span class="w-1 bg-primary rounded-full animate-bounce" style="height: 80%; animation-duration: 0.9s;"></span>
-        <span class="w-1 bg-primary rounded-full animate-bounce" style="height: 50%; animation-duration: 1.0s;"></span>
+        <span
+          class="w-1 bg-primary rounded-full animate-bounce"
+          style="height: 60%; animation-duration: 0.8s;"
+        />
+        <span
+          class="w-1 bg-primary rounded-full animate-bounce"
+          style="height: 100%; animation-duration: 1.1s;"
+        />
+        <span
+          class="w-1 bg-primary rounded-full animate-bounce"
+          style="height: 40%; animation-duration: 0.7s;"
+        />
+        <span
+          class="w-1 bg-primary rounded-full animate-bounce"
+          style="height: 80%; animation-duration: 0.9s;"
+        />
+        <span
+          class="w-1 bg-primary rounded-full animate-bounce"
+          style="height: 50%; animation-duration: 1.0s;"
+        />
       </div>
     </div>
 
     <!-- Video Loading Spinner (shown only for active full player) -->
-    <div v-if="isVideoLoading && !preview && !error" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm z-10 transition-opacity duration-300">
+    <div
+      v-if="isVideoLoading && !preview && !error"
+      class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-sm z-10 transition-opacity duration-300"
+    >
       <Loader2 class="w-10 h-10 text-primary animate-spin mb-3" />
       <span class="text-sm font-medium text-slate-300">Decrypting & buffering stream...</span>
     </div>
 
     <!-- Error Overlay with Giant HTTP Code -->
-    <div v-if="error && !preview" class="absolute inset-0 flex flex-col items-center justify-center bg-[#111113] text-white z-50">
+    <div
+      v-if="error && !preview"
+      class="absolute inset-0 flex flex-col items-center justify-center bg-[#111113] text-white z-50"
+    >
       <div class="flex flex-col items-center text-center p-8">
-        <div v-if="errorCode" class="text-8xl md:text-9xl font-black text-rose-600/20 mb-2 leading-none relative select-none">
+        <div
+          v-if="errorCode"
+          class="text-8xl md:text-9xl font-black text-rose-600/20 mb-2 leading-none relative select-none"
+        >
           {{ errorCode }}
-          <span class="absolute inset-0 flex items-center justify-center text-rose-500 text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-rose-400 to-rose-600" style="-webkit-text-stroke: 1px rgba(255,255,255,0.1)">
+          <span
+            class="absolute inset-0 flex items-center justify-center text-rose-500 text-5xl md:text-7xl font-bold bg-clip-text text-transparent bg-gradient-to-b from-rose-400 to-rose-600"
+            style="-webkit-text-stroke: 1px rgba(255,255,255,0.1)"
+          >
             {{ errorCode }}
           </span>
         </div>
-        <div v-else class="mb-6 bg-rose-500/10 p-4 rounded-full">
+        <div
+          v-else
+          class="mb-6 bg-rose-500/10 p-4 rounded-full"
+        >
           <AlertCircle class="w-12 h-12 text-rose-500" />
         </div>
         
-        <h3 class="text-xl font-bold text-slate-200 mb-2 mt-4 tracking-tight">Stream Access Denied</h3>
-        <p class="text-slate-400 text-sm max-w-sm mb-8">{{ error }}</p>
+        <h3 class="text-xl font-bold text-slate-200 mb-2 mt-4 tracking-tight">
+          Stream Access Denied
+        </h3>
+        <p class="text-slate-400 text-sm max-w-sm mb-8">
+          {{ error }}
+        </p>
         
-        <button @click="initPlayer" class="px-6 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium text-slate-300 transition-colors duration-200 flex items-center gap-2">
+        <button
+          class="px-6 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-medium text-slate-300 transition-colors duration-200 flex items-center gap-2"
+          @click="initPlayer"
+        >
           Retry Connection
         </button>
       </div>
     </div>
 
     <!-- Refresh Indicator (Subtle) -->
-    <div v-if="isRefreshing && !preview && !error" class="absolute top-4 right-4 animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"></div>
+    <div
+      v-if="isRefreshing && !preview && !error"
+      class="absolute top-4 right-4 animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full"
+    />
   </div>
 </template>

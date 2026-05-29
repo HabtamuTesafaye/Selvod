@@ -14,9 +14,7 @@ echo "SELVOD FULL-SPECTRUM PERIMETER TEST"
 echo "------------------------------------"
 
 # 1. Fetch Video ID
-CURL_OUT=$(curl -k -s -v -H "Authorization: Bearer $ADMIN_KEY" "$API_URL/videos" 2>&1)
-echo "DEBUG CURL OUT: $CURL_OUT"
-VIDEO_ID=$(echo "$CURL_OUT" | grep -oE '"id":"[^"]+"' | head -1 | cut -d'"' -f4)
+VIDEO_ID=$(curl -k -s -H "Authorization: Bearer $ADMIN_KEY" "$API_URL/videos" | jq -r '.videos[0].id' 2>/dev/null || echo "")
 if [ -z "$VIDEO_ID" ]; then
     echo "[FAIL] No videos found. Seed script failed."
     exit 1
@@ -39,8 +37,8 @@ if [ "$STATUS" == "403" ]; then echo " PASSED"; else echo " FAILED ($STATUS)"; e
 # 4. Positive Test: Full HLS Graph
 # We need to fetch signature token/expires from the stream API
 SIGNED_JSON=$(curl -k -s -H "Authorization: Bearer $ADMIN_KEY" "$API_URL/videos/$VIDEO_ID/stream")
-TOKEN=$(echo "$SIGNED_JSON" | grep -oE '"token":"[^"]+"' | cut -d'"' -f4)
-EXPIRES=$(echo "$SIGNED_JSON" | grep -oE '"expires":[0-9]+' | cut -d':' -f2)
+TOKEN=$(echo "$SIGNED_JSON" | jq -r '.token')
+EXPIRES=$(echo "$SIGNED_JSON" | jq -r '.expires')
 
 # Clear old cookies
 rm -f /tmp/cookies.txt

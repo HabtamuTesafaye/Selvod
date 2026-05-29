@@ -2,11 +2,29 @@
 import { onMounted, onUnmounted, ref } from 'vue'
 import Hls from 'hls.js'
 import axios from 'axios'
+import Plyr from 'plyr'
+import 'plyr/dist/plyr.css'
 
 // Read params from URL: /embed.html?videoId=xxx&key=yyy
 const params = new URLSearchParams(window.location.search)
 const videoId = params.get('videoId') || params.get('v')
 const libraryKey = params.get('key') || params.get('k')
+
+const playerConfig = ref({
+  accentColor: '#e11d48',
+  controls: {
+    playLarge: true, play: true, progress: true, currentTime: true,
+    mute: true, volume: true, fullscreen: true, settings: true,
+    pip: false, speed: true, quality: true, captions: false, airplay: false
+  },
+  behavior: {
+    autoplay: false, loop: false, clickToPlay: true, hideControls: true,
+    resetOnEnd: false, invertTime: true, seekTime: 10
+  },
+  branding: {
+    showWatermark: false, watermarkText: '', watermarkPosition: 'bottom-right'
+  }
+})
 
 const videoRef = ref(null)
 const error = ref(null)
@@ -17,6 +35,7 @@ const isAudioOnly = ref(false)
 
 let hls = null
 let refreshTimer = null
+let player = null
 
 const clientApi = axios.create({ baseURL: '/api/v1' })
 
@@ -54,6 +73,53 @@ async function initPlayer() {
   try {
     resetPlayer()
     isLoading.value = true
+
+    // Fetch global player config
+    try {
+      const { data: cfgData } = await axios.get('/api/v1/config/player')
+      if (cfgData && Object.keys(cfgData).length > 0) {
+        if (cfgData.accentColor) playerConfig.value.accentColor = cfgData.accentColor
+        if (cfgData.controls) playerConfig.value.controls = { ...playerConfig.value.controls, ...cfgData.controls }
+        if (cfgData.behavior) playerConfig.value.behavior = { ...playerConfig.value.behavior, ...cfgData.behavior }
+        if (cfgData.branding) playerConfig.value.branding = { ...playerConfig.value.branding, ...cfgData.branding }
+      }
+    } catch (e) {
+      console.warn('Could not fetch player config, using defaults', e)
+    }
+
+    // Build Plyr controls list from config
+    const plyrControls = []
+    const cfg = playerConfig.value.controls
+    if (cfg.playLarge) plyrControls.push('play-large')
+    if (cfg.play) plyrControls.push('play')
+    if (cfg.progress) plyrControls.push('progress')
+    if (cfg.currentTime) plyrControls.push('current-time')
+    if (cfg.mute) plyrControls.push('mute')
+    if (cfg.volume) plyrControls.push('volume')
+    if (cfg.captions) plyrControls.push('captions')
+    if (cfg.settings) plyrControls.push('settings')
+    if (cfg.pip) plyrControls.push('pip')
+    if (cfg.airplay) plyrControls.push('airplay')
+    if (cfg.fullscreen) plyrControls.push('fullscreen')
+
+    const plyrSettings = []
+    if (cfg.quality) plyrSettings.push('quality')
+    if (cfg.speed) plyrSettings.push('speed')
+
+    // Initialize Plyr
+    if (!player && videoRef.value) {
+      player = new Plyr(videoRef.value, {
+        controls: plyrControls,
+        settings: plyrSettings,
+        invertTime: playerConfig.value.behavior.invertTime,
+        seekTime: playerConfig.value.behavior.seekTime,
+        clickToPlay: playerConfig.value.behavior.clickToPlay,
+        hideControls: playerConfig.value.behavior.hideControls,
+        resetOnEnd: playerConfig.value.behavior.resetOnEnd,
+        loop: { active: playerConfig.value.behavior.loop },
+        autoplay: playerConfig.value.behavior.autoplay
+      })
+    }
 
     const data = await getStream()
     const streamUrl = resolveStreamUrl(data.url)
@@ -196,6 +262,7 @@ function resetPlayer() {
   error.value = null
   if (hls) { hls.destroy(); hls = null }
   if (refreshTimer) { clearTimeout(refreshTimer); refreshTimer = null }
+  if (player) { player.destroy(); player = null }
 }
 
 onMounted(() => { initPlayer() })
@@ -203,81 +270,192 @@ onUnmounted(() => { resetPlayer() })
 </script>
 
 <template>
-  <div class="embed-root">
+  <div
+    class="embed-root"
+    :style="{ '--plyr-color-main': playerConfig.accentColor }"
+  >
     <!-- Video element -->
     <video
       v-show="!error"
       ref="videoRef"
       :class="['embed-video', isAudioOnly ? 'audio-hidden' : '']"
-      controls
       preload="metadata"
       playsinline
       @canplay="isLoading = false"
       @waiting="isLoading = true"
       @playing="isLoading = false"
-    ></video>
+    />
+
+    <!-- Branding Watermark -->
+    <div
+      v-if="playerConfig.branding.showWatermark && playerConfig.branding.watermarkText && !error"
+      :class="[
+        'absolute z-10 pointer-events-none select-none text-white/50 font-bold text-sm px-3 py-1',
+        playerConfig.branding.watermarkPosition === 'top-left' ? 'top-4 left-4' : '',
+        playerConfig.branding.watermarkPosition === 'top-right' ? 'top-4 right-4' : '',
+        playerConfig.branding.watermarkPosition === 'bottom-left' ? 'bottom-16 left-4' : '',
+        playerConfig.branding.watermarkPosition === 'bottom-right' ? 'bottom-16 right-4' : ''
+      ]"
+    >
+      {{ playerConfig.branding.watermarkText }}
+    </div>
 
     <!-- Audio-only visualizer -->
-    <div v-if="isAudioOnly && !error" class="audio-overlay">
+    <div
+      v-if="isAudioOnly && !error"
+      class="audio-overlay"
+    >
       <div class="audio-icon-ring">
-        <svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+        <svg
+          class="audio-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+          />
         </svg>
       </div>
       <span class="audio-label">Audio Stream</span>
       <div class="audio-bars">
-        <span class="bar" style="animation-duration: 0.8s;"></span>
-        <span class="bar" style="animation-duration: 1.1s;"></span>
-        <span class="bar" style="animation-duration: 0.7s;"></span>
-        <span class="bar" style="animation-duration: 0.9s;"></span>
-        <span class="bar" style="animation-duration: 1.0s;"></span>
+        <span
+          class="bar"
+          style="animation-duration: 0.8s;"
+        />
+        <span
+          class="bar"
+          style="animation-duration: 1.1s;"
+        />
+        <span
+          class="bar"
+          style="animation-duration: 0.7s;"
+        />
+        <span
+          class="bar"
+          style="animation-duration: 0.9s;"
+        />
+        <span
+          class="bar"
+          style="animation-duration: 1.0s;"
+        />
       </div>
     </div>
 
     <!-- Loading spinner -->
-    <div v-if="isLoading && !error" class="loading-overlay">
-      <div class="spinner"></div>
+    <div
+      v-if="isLoading && !error"
+      class="loading-overlay"
+    >
+      <div class="spinner" />
       <span class="loading-text">Loading stream...</span>
     </div>
 
     <!-- Error state -->
-    <div v-if="error" class="error-overlay">
+    <div
+      v-if="error"
+      class="error-overlay"
+    >
       <div class="error-content">
-        <div v-if="errorCode" class="error-code-bg">
+        <div
+          v-if="errorCode"
+          class="error-code-bg"
+        >
           {{ errorCode }}
           <span class="error-code-fg">{{ errorCode }}</span>
         </div>
-        <div v-else class="error-icon-wrap">
-          <svg class="error-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10" />
-            <line x1="12" y1="8" x2="12" y2="12" />
-            <line x1="12" y1="16" x2="12.01" y2="16" />
+        <div
+          v-else
+          class="error-icon-wrap"
+        >
+          <svg
+            class="error-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle
+              cx="12"
+              cy="12"
+              r="10"
+            />
+            <line
+              x1="12"
+              y1="8"
+              x2="12"
+              y2="12"
+            />
+            <line
+              x1="12"
+              y1="16"
+              x2="12.01"
+              y2="16"
+            />
           </svg>
         </div>
-        <h3 class="error-title">Playback Failed</h3>
-        <p class="error-message">{{ error }}</p>
-        <button @click="initPlayer" class="retry-btn">Retry</button>
+        <h3 class="error-title">
+          Playback Failed
+        </h3>
+        <p class="error-message">
+          {{ error }}
+        </p>
+        <button
+          class="retry-btn"
+          @click="initPlayer"
+        >
+          Retry
+        </button>
       </div>
     </div>
 
     <!-- Refresh indicator -->
-    <div v-if="isRefreshing && !error" class="refresh-indicator"></div>
+    <div
+      v-if="isRefreshing && !error"
+      class="refresh-indicator"
+    />
 
     <!-- Watermark -->
-    <div v-if="!error && !isLoading" class="watermark">SELVOD</div>
+    <div
+      v-if="!error && !isLoading"
+      class="watermark"
+    >
+      SELVOD
+    </div>
   </div>
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-
 .embed-root {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
   background: #000;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   overflow: hidden;
+}
+
+/* Force Plyr to take full height of the container */
+.plyr {
+  width: 100%;
+  height: 100%;
+}
+
+.plyr__video-wrapper {
+  height: 100% !important;
+  padding-bottom: 0 !important;
+  margin: 0 !important;
+}
+
+.plyr__video-wrapper video {
+  height: 100% !important;
+  width: 100% !important;
+  object-fit: contain !important;
 }
 
 .embed-video {

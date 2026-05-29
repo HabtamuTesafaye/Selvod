@@ -1,8 +1,8 @@
 import { api, healthApi } from '../lib/api'
 
-export async function listVideos(libraryId) {
+export async function listVideos(libraryId, { signal } = {}) {
   const url = libraryId ? `/videos?library_id=${libraryId}` : '/videos'
-  const { data } = await api.get(url)
+  const { data } = await api.get(url, { signal })
   return data
 }
 
@@ -15,24 +15,24 @@ export async function deleteVideo(id) {
   await api.delete(`/videos/${id}`)
 }
 
-export async function getStream(id) {
-  const { data } = await api.get(`/videos/${id}/stream`)
+export async function getStream(id, { signal } = {}) {
+  const { data } = await api.get(`/videos/${id}/stream`, { signal })
   return data
 }
 
-export async function getEmbed(id) {
-  const { data } = await api.get(`/videos/${id}/embed`)
+export async function getEmbed(id, { signal } = {}) {
+  const { data } = await api.get(`/videos/${id}/embed`, { signal })
   return data
 }
 
-export async function getHealth() {
-  const { data } = await healthApi.get('/health')
+export async function getHealth({ signal } = {}) {
+  const { data } = await healthApi.get('/health', { signal })
   return data
 }
 
 // Library Management
-export async function listLibraries() {
-  const { data } = await api.get('/libraries')
+export async function listLibraries({ signal } = {}) {
+  const { data } = await api.get('/libraries', { signal })
   return data
 }
 
@@ -41,8 +41,8 @@ export async function createLibrary(name) {
   return data
 }
 
-export async function listLibraryKeys(libraryId) {
-  const { data } = await api.get(`/libraries/${libraryId}/keys`)
+export async function listLibraryKeys(libraryId, { signal } = {}) {
+  const { data } = await api.get(`/libraries/${libraryId}/keys`, { signal })
   return data
 }
 
@@ -71,5 +71,15 @@ export async function updateVideo(id, { title, library_id }) {
 
 export async function updateLibrary(id, name) {
   const { data } = await api.patch(`/libraries/${id}`, { name })
+  return data
+}
+
+export async function getGlobalPlayerConfig({ signal } = {}) {
+  const { data } = await api.get('/config/player', { signal })
+  return data
+}
+
+export async function updateGlobalPlayerConfig(config) {
+  const { data } = await api.post('/config/player', config)
   return data
 }

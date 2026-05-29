@@ -3,6 +3,7 @@ package signer
 import (
 	"crypto/md5"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 )
@@ -28,6 +29,13 @@ func NewSecureSigner(secret, baseURL string) *SecureSigner {
 
 // Sign generates a cryptographically bound URL using MD5 + Library Scoped Secret + Expiry.
 func (s *SecureSigner) Sign(libraryID, videoID string, playbackSecret string, duration time.Duration) (*SignedURL, error) {
+	if libraryID == "" || videoID == "" || playbackSecret == "" {
+		return nil, errors.New("signer: libraryID, videoID, and playbackSecret are required")
+	}
+	if s.baseURL == "" {
+		return nil, errors.New("signer: baseURL is not configured")
+	}
+
 	expires := time.Now().Add(duration).Unix()
 	token := s.GenerateToken(libraryID, videoID, playbackSecret, expires)
 

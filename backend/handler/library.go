@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -66,6 +67,7 @@ func (h *VideoHandler) HandleListLibraries(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "failed to list libraries", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(libs)
 }
 
@@ -101,9 +103,12 @@ func (h *VideoHandler) HandleCreateLibrary(w http.ResponseWriter, r *http.Reques
 			PlaybackSecret: secret,
 			IsActive:       true,
 		}
-		_ = h.Store.CreateLibraryKey(r.Context(), defaultKey)
+		if err := h.Store.CreateLibraryKey(r.Context(), defaultKey); err != nil {
+			slog.Warn("failed to create default key", "library_id", lib.ID, "error", err)
+		}
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	// Return both the library AND the generated key secret (only shown once)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -134,6 +139,7 @@ func (h *VideoHandler) HandleUpdateLibrary(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(lib)
 }
 
@@ -144,7 +150,19 @@ func (h *VideoHandler) HandleListLibraryKeys(w http.ResponseWriter, r *http.Requ
 		http.Error(w, "failed to list library keys", http.StatusInternalServerError)
 		return
 	}
-	json.NewEncoder(w).Encode(keys)
+
+	sanitized := make([]map[string]interface{}, 0, len(keys))
+	for _, k := range keys {
+		sanitized = append(sanitized, map[string]interface{}{
+			"id":         k.ID,
+			"library_id": k.LibraryID,
+			"key_name":   k.KeyName,
+			"is_active":  k.IsActive,
+			"created_at": k.CreatedAt,
+		})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(sanitized)
 }
 
 func (h *VideoHandler) HandleCreateLibraryKey(w http.ResponseWriter, r *http.Request) {
@@ -179,6 +197,7 @@ func (h *VideoHandler) HandleCreateLibraryKey(w http.ResponseWriter, r *http.Req
 	// Evict cache to force reload of keys
 	h.Cache.Evict(libraryID)
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(k)
 }
@@ -276,29 +295,10 @@ func (h *VideoHandler) HandleAuthManifest(w http.ResponseWriter, r *http.Request
 	}
 
 	// Retrieve playback secret (Cache with TTL / DB fallback)
-	secret, ok := h.Cache.Get(libraryID)
-	if !ok {
-		keys, err := h.Store.ListLibraryKeys(r.Context(), libraryID)
-		if err != nil {
-			http.Error(w, "database error", http.StatusInternalServerError)
-			return
-		}
-
-		var activeKey *store.LibraryKey
-		for _, k := range keys {
-			if k.IsActive {
-				activeKey = k
-				break
-			}
-		}
-
-		if activeKey == nil {
-			http.Error(w, "no active playback keys found for library", http.StatusUnauthorized)
-			return
-		} else {
-			secret = activeKey.PlaybackSecret
-		}
-		h.Cache.Set(libraryID, secret, 5*time.Minute)
+	secret, err := h.playbackSecret(r.Context(), libraryID)
+	if err != nil {
+		http.Error(w, "no active playback keys found for library", http.StatusUnauthorized)
+		return
 	}
 
 	// Verify token

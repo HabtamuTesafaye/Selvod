@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -50,7 +51,10 @@ func (h *WebhookHook) OnEvent(event Event, video *store.Video) error {
 		"video":     video,
 	}
 
-	body, _ := json.Marshal(payload)
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal webhook payload: %w", err)
+	}
 	req, err := http.NewRequest("POST", h.URL, bytes.NewBuffer(body))
 	if err != nil {
 		return err
@@ -86,6 +90,8 @@ func (r *Registry) Add(h Hook) {
 // Dispatch broadcasts an event to all registered hooks.
 func (r *Registry) Dispatch(event Event, video *store.Video) {
 	for _, h := range r.hooks {
-		_ = h.OnEvent(event, video)
+		if err := h.OnEvent(event, video); err != nil {
+			slog.Error("hook dispatch failed", "event", event, "error", err)
+		}
 	}
 }

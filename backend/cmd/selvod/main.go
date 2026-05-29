@@ -45,7 +45,17 @@ func main() {
 	sig := signer.NewSecureSigner(cfg.StreamSecret, cfg.BaseURL)
 
 	// Inject both the master APIKey and the independent PlaybackKey
-	srv := api.NewServer(meta, st, sig, q, hr, t, cfg.StoragePath, cfg.APIKey, cfg.PlaybackKey)
+	srv := api.NewServer(api.Config{
+		Store:       meta,
+		Storage:     st,
+		Signer:      sig,
+		Queue:       q,
+		Hooks:       hr,
+		Transcoder:  t,
+		StorageDir:  cfg.StoragePath,
+		APIKey:      cfg.APIKey,
+		PlaybackKey: cfg.PlaybackKey,
+	})
 
 	go func() {
 		if err := srv.Start(cfg.Port); err != nil && err != http.ErrServerClosed {
@@ -64,6 +74,9 @@ func main() {
 
 	if err := srv.Stop(ctx); err != nil {
 		slog.Error("shutdown failed", "error", err)
+	}
+	if err := meta.Close(); err != nil {
+		slog.Error("store close failed", "error", err)
 	}
 	slog.Info("shutdown complete")
 }

@@ -24,26 +24,40 @@ type Server struct {
 	handler     *handler.VideoHandler
 	apiKey      string
 	playbackKey string
+	queue       *queue.WorkerPool
 }
 
-func NewServer(s store.Store, st storage.Provider, sig *signer.SecureSigner, q *queue.WorkerPool, h *hooks.Registry, t transcoder.Transcoder, storageDir, apiKey, playbackKey string) *Server {
+type Config struct {
+	Store       store.Store
+	Storage     storage.Provider
+	Signer      *signer.SecureSigner
+	Queue       *queue.WorkerPool
+	Hooks       *hooks.Registry
+	Transcoder  transcoder.Transcoder
+	StorageDir  string
+	APIKey      string
+	PlaybackKey string
+}
+
+func NewServer(cfg Config) *Server {
 	vh := &handler.VideoHandler{
-		Store:        s,
-		Storage:      st,
-		Signer:       sig,
-		Queue:        q,
-		Hooks:        h,
-		Transcoder:   t,
-		StorageDir:   storageDir,
+		Store:        cfg.Store,
+		Storage:      cfg.Storage,
+		Signer:       cfg.Signer,
+		Queue:        cfg.Queue,
+		Hooks:        cfg.Hooks,
+		Transcoder:   cfg.Transcoder,
+		StorageDir:   cfg.StorageDir,
 		Cache:        handler.NewLibraryCache(),
-		GlobalSecret: playbackKey,
+		GlobalSecret: cfg.PlaybackKey,
 	}
 
 	srv := &Server{
 		router:      chi.NewRouter(),
 		handler:     vh,
-		apiKey:      apiKey,
-		playbackKey: playbackKey,
+		apiKey:      cfg.APIKey,
+		playbackKey: cfg.PlaybackKey,
+		queue:       cfg.Queue,
 	}
 
 	srv.routes()
@@ -61,12 +75,16 @@ func (s *Server) routes() {
 	s.router.Get("/api/v1/auth/manifest", s.handler.HandleAuthManifest)
 
 	s.router.Route("/api/v1", func(r chi.Router) {
-		r.Use(customMiddleware.ScopedAuth(s.apiKey, s.playbackKey, s.handler.Store))
+		// Public endpoints
+		r.Get("/config/player", s.handler.HandleGetPlayerConfig)
 
-		r.Get("/videos/{id}/stream", s.handler.HandleSign)
-		r.Get("/videos/{id}/embed", s.handler.HandleEmbed)
-
+		// Protected endpoints
 		r.Group(func(r chi.Router) {
+			r.Use(customMiddleware.ScopedAuth(s.apiKey, s.playbackKey, s.handler.Store))
+
+			r.Get("/videos/{id}/stream", s.handler.HandleSign)
+			r.Get("/videos/{id}/embed", s.handler.HandleEmbed)
+
 			r.Post("/videos", s.handler.HandleUpload)
 			r.Get("/videos", s.handler.HandleList)
 			r.Get("/videos/{id}", s.handler.HandleGet)
@@ -82,6 +100,9 @@ func (s *Server) routes() {
 			r.Delete("/libraries/{id}/keys/{key_id}", s.handler.HandleDeleteLibraryKey)
 			r.Post("/libraries/{id}/keys/{key_id}/revoke", s.handler.HandleRevokeLibraryKey)
 			r.Post("/libraries/{id}/keys/{key_id}/regenerate", s.handler.HandleRegenerateLibraryKey)
+
+			// Player configuration
+			r.Post("/config/player", s.handler.HandleUpdatePlayerConfig)
 		})
 	})
 
@@ -102,6 +123,7 @@ func (s *Server) Start(port string) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
+	s.queue.Stop()
 	if s.httpServer == nil {
 		return nil
 	}

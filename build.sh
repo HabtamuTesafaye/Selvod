@@ -11,6 +11,6 @@ go build -o ../bin/selvod ./cmd/selvod
 cd ..
 
 echo -e "${GREEN}Building Docker Images...${NC}"
-docker-compose build
+docker compose build
 
 echo -e "${GREEN}Build Complete! Binary located in ./bin/selvod${NC}"
