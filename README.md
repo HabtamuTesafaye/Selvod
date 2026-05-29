@@ -10,7 +10,32 @@
 
 ## 🏗 System Architecture
 
-Selvod uses a decoupled architecture separating heavy media processing from secure client delivery. 
+Selvod uses a decoupled architecture separating heavy media processing from secure client delivery.
+
+<div align="center">
+
+### 📸 Demo Gallery
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="demos/demo1.png" alt="Demo 1" width="100%">
+    </td>
+    <td align="center" width="50%">
+      <img src="demos/demo2.png" alt="Demo 2" width="100%">
+    </td>
+  </tr>
+  <tr>
+    <td align="center" width="50%">
+      <img src="demos/demo3.png" alt="Demo 3" width="100%">
+    </td>
+    <td align="center" width="50%">
+      <img src="demos/demo4.png" alt="Demo 4" width="100%">
+    </td>
+  </tr>
+</table>
+
+</div>
 
 ```mermaid
 graph TD
