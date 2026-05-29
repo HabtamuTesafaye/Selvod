@@ -487,10 +487,14 @@ onUnmounted(() => {
       />
     </div>
 
-    <PlayerConfig
+    <div
       v-else-if="activeTab === 'player-ui'"
-      @notify="(n) => emit('notify', n)"
-    />
+      class="h-full overflow-y-auto"
+    >
+      <PlayerConfig
+        @notify="(n) => emit('notify', n)"
+      />
+    </div>
 
     <UnderConstruction
       v-else
