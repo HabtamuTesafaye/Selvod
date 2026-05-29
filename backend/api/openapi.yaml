@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Selvod API
-  description: Headless VOD streaming engine for multi-resolution HLS.
+  description: Selvod — Self-hosted Video on Demand. Headless VOD streaming engine for multi-resolution HLS.
   version: 1.0.0
 servers:
   - url: /api/v1

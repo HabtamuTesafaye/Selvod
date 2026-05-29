@@ -1,10 +1,10 @@
-# 🎥 Selvod - Modern Headless VOD Infrastructure
+# 🎥 Selvod - Self-hosted Video on Demand
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](./check.sh)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?logo=go)](backend/go.mod)
 
-**Selvod** is a professional, high-performance Video-on-Demand (VOD) engine built for developers who need secure, automated, and scalable video delivery. It handles the entire lifecycle from **raw upload** and **ABR transcoding** to **secure path-based streaming** through a dedicated Nginx sidecar.
+**Selvod** (Self-hosted Video on Demand) is a professional, high-performance VOD engine built for developers who need secure, automated, and scalable video delivery. It handles the entire lifecycle from **raw upload** and **ABR transcoding** to **secure path-based streaming** through a dedicated Nginx sidecar.
 
 ---
 
