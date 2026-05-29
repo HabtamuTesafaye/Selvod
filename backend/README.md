@@ -1,6 +1,6 @@
 # 🛠 Selvod Go Backend Engine
 
-The Selvod backend is a high-concurrency Go service responsible for video ingestion, ABR transcoding orchestration, database persistence, and security signing.
+Selvod (Self-hosted Video on Demand). The backend is a high-concurrency Go service responsible for video ingestion, ABR transcoding orchestration, database persistence, and security signing.
 
 ---
 
