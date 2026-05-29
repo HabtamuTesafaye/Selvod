@@ -107,6 +107,11 @@ func (s *Server) routes() {
 	})
 
 	s.router.Get("/health", s.handler.HandleHealth)
+
+	// OpenAPI spec and Swagger UI
+	s.router.Get("/api/v1/openapi.yaml", specHandler)
+	s.router.Get("/docs", swaggerUIHandler)
+	s.router.Get("/docs/", swaggerUIHandler)
 }
 
 func (s *Server) Start(port string) error {
