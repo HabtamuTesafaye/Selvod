@@ -16,12 +16,12 @@ Selvod uses a decoupled architecture separating heavy media processing from secu
 
 ### 📸 Demo Gallery
 
-<div style="display: flex; gap: 16px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 12px 0; border-radius: 12px;">
-  <img src="demos/demo1.png" alt="Demo 1" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-  <img src="demos/demo2.png" alt="Demo 2" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-  <img src="demos/demo3.png" alt="Demo 3" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-  <img src="demos/demo4.png" alt="Demo 4" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
-  <img src="demos/demo5.png" alt="Demo 5" style="scroll-snap-align: start; flex: 0 0 auto; width: 100%; max-width: 680px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+<div style="overflow-x: auto; white-space: nowrap; padding: 12px 0; border-radius: 12px; -webkit-overflow-scrolling: touch;">
+  <a href="demos/demo1.png"><img src="demos/demo1.png" alt="Demo 1" style="height: 280px; display: inline-block; margin: 0 8px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"></a>
+  <a href="demos/demo2.png"><img src="demos/demo2.png" alt="Demo 2" style="height: 280px; display: inline-block; margin: 0 8px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"></a>
+  <a href="demos/demo3.png"><img src="demos/demo3.png" alt="Demo 3" style="height: 280px; display: inline-block; margin: 0 8px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"></a>
+  <a href="demos/demo4.png"><img src="demos/demo4.png" alt="Demo 4" style="height: 280px; display: inline-block; margin: 0 8px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"></a>
+  <a href="demos/demo5.png"><img src="demos/demo5.png" alt="Demo 5" style="height: 280px; display: inline-block; margin: 0 8px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);"></a>
 </div>
 <p style="font-size: 14px; color: #888; margin-top: 8px;">← Scroll or swipe to browse →</p>
 
