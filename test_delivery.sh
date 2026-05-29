@@ -14,9 +14,7 @@ echo "SELVOD FULL-SPECTRUM PERIMETER TEST"
 echo "------------------------------------"
 
 # 1. Fetch Video ID
-CURL_OUT=$(curl -k -s -v -H "Authorization: Bearer $ADMIN_KEY" "$API_URL/videos" 2>&1)
-echo "DEBUG CURL OUT: $CURL_OUT"
-VIDEO_ID=$(echo "$CURL_OUT" | jq -r '.videos[0].id' 2>/dev/null || echo "")
+VIDEO_ID=$(curl -k -s -H "Authorization: Bearer $ADMIN_KEY" "$API_URL/videos" | jq -r '.videos[0].id' 2>/dev/null || echo "")
 if [ -z "$VIDEO_ID" ]; then
     echo "[FAIL] No videos found. Seed script failed."
     exit 1
