@@ -1,0 +1,561 @@
+openapi: 3.0.3
+info:
+  title: Selvod API
+  description: Headless VOD streaming engine for multi-resolution HLS.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: API v1
+  - url: /
+    description: Root (health check)
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      tags: [System]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /config/player:
+    get:
+      summary: Get player configuration
+      tags: [Config]
+      responses:
+        '200':
+          description: Player configuration JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerConfig'
+        '500':
+          description: Failed to read config
+    post:
+      summary: Update player configuration
+      tags: [Config]
+      security: [BearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlayerConfig'
+      responses:
+        '200':
+          description: Updated player configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlayerConfig'
+        '400':
+          description: Invalid JSON
+        '500':
+          description: Failed to save config
+
+  /videos:
+    post:
+      summary: Upload and transcode a video
+      tags: [Videos]
+      security: [BearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Media file (.mp4, .mov, .mkv, .webm, .mp3, .aac, .wav, .ogg, .flac)
+                title:
+                  type: string
+                  description: Optional title (defaults to filename)
+                library_id:
+                  type: string
+                  format: uuid
+                  description: Optional library ID (defaults to default library)
+      responses:
+        '202':
+          description: Uploaded and queued for transcoding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: File too large or missing
+        '415':
+          description: Unsupported media type
+        '507':
+          description: Insufficient storage
+    get:
+      summary: List all videos
+      tags: [Videos]
+      security: [BearerAuth: []]
+      parameters:
+        - name: library_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          description: Filter by library
+      responses:
+        '200':
+          description: List of videos with total count
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  videos:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Video'
+                  total:
+                    type: integer
+
+  /videos/{id}:
+    get:
+      summary: Get video details
+      tags: [Videos]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Video metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '404':
+          description: Video not found
+    patch:
+      summary: Update video
+      tags: [Videos]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                library_id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Updated video
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Video'
+        '400':
+          description: Invalid input or target library not found
+        '404':
+          description: Video not found
+    delete:
+      summary: Delete video (idempotent)
+      tags: [Videos]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted (or not found)
+
+  /videos/{id}/stream:
+    get:
+      summary: Get signed HLS stream URL
+      tags: [Playback]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Signed HLS URL with token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignedURL'
+        '400':
+          description: No active playback keys
+        '404':
+          description: Video not found
+        '423':
+          description: Video still processing
+
+  /videos/{id}/embed:
+    get:
+      summary: Generate signed embed URL (24h expiry)
+      tags: [Playback]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Embed URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+        '400':
+          description: No active playback keys
+        '404':
+          description: Video not found
+        '423':
+          description: Video still processing
+
+  /libraries:
+    get:
+      summary: List all libraries
+      tags: [Libraries]
+      security: [BearerAuth: []]
+      responses:
+        '200':
+          description: List of libraries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Library'
+    post:
+      summary: Create a library
+      tags: [Libraries]
+      security: [BearerAuth: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '201':
+          description: Library created with default playback key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  library:
+                    $ref: '#/components/schemas/Library'
+                  default_key:
+                    $ref: '#/components/schemas/LibraryKey'
+        '400':
+          description: Invalid input
+
+  /libraries/{id}:
+    patch:
+      summary: Update library (rename)
+      tags: [Libraries]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+      responses:
+        '200':
+          description: Updated library
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Library'
+        '400':
+          description: Invalid input
+        '404':
+          description: Library not found
+
+  /libraries/{id}/keys:
+    get:
+      summary: List library keys (secrets excluded)
+      tags: [Library Keys]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of sanitized keys
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LibraryKey'
+    post:
+      summary: Create a library playback key
+      tags: [Library Keys]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key_name]
+              properties:
+                key_name:
+                  type: string
+      responses:
+        '201':
+          description: Key created with playback_secret (shown once)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LibraryKey'
+        '400':
+          description: Invalid input
+
+  /libraries/{id}/keys/{key_id}:
+    delete:
+      summary: Delete a library key
+      tags: [Library Keys]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: key_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Deleted
+
+  /libraries/{id}/keys/{key_id}/revoke:
+    post:
+      summary: Revoke (deactivate) a library key
+      tags: [Library Keys]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: key_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Revoked
+
+  /libraries/{id}/keys/{key_id}/regenerate:
+    post:
+      summary: Regenerate a library key secret
+      tags: [Library Keys]
+      security: [BearerAuth: []]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: key_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: New playback secret (shown once)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  playback_secret:
+                    type: string
+        '500':
+          description: Failed to regenerate
+
+components:
+  schemas:
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        time:
+          type: string
+          format: date-time
+        storage_available_bytes:
+          type: integer
+          nullable: true
+
+    PlayerConfig:
+      type: object
+      description: Arbitrary JSON configuration for the video player
+      additionalProperties: true
+
+    Video:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        library_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        original_ext:
+          type: string
+        status:
+          type: string
+          enum: [pending, transcoding, completed, failed]
+        upload_size_bytes:
+          type: integer
+        total_size_bytes:
+          type: integer
+        duration:
+          type: number
+          format: float
+          nullable: true
+        transcoding_started_at:
+          type: string
+          format: date-time
+          nullable: true
+        transcoding_finished_at:
+          type: string
+          format: date-time
+          nullable: true
+        error_message:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SignedURL:
+      type: object
+      properties:
+        url:
+          type: string
+        token:
+          type: string
+        expires:
+          type: integer
+        expires_in:
+          type: integer
+
+    Library:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    LibraryKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        library_id:
+          type: string
+          format: uuid
+        key_name:
+          type: string
+        playback_secret:
+          type: string
+          description: Only shown at creation/regeneration
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer

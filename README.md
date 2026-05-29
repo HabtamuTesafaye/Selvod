@@ -304,7 +304,7 @@ curl -H "Authorization: Bearer YOUR_LIBRARY_PLAYBACK_KEY" \
 
 | Module       | Description                                                                            | Location                            |
 | :----------- | :------------------------------------------------------------------------------------- | :---------------------------------- |
-| **Backend**  | Go API Router, Worker Queue, SQLite WAL store, Webhook dispatches, and FFmpeg wrapper. | [`/backend`](./backend/README.md)   |
+| **Backend**  | Go API Router, Worker Queue, SQLite WAL store, Webhook dispatches, FFmpeg wrapper, and OpenAPI docs at `/docs`. | [`/backend`](./backend/README.md)   |
 | **Frontend** | Vue 3 Dashboard, Pinia Upload state, and ForgePlayer.                                  | [`/frontend`](./frontend/README.md) |
 | **Nginx**    | Reverse proxy, SSL termination, and Secure Link MD5 cookie check.                      | [`/nginx`](./nginx/README.md)       |
 

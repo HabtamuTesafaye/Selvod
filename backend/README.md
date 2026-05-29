@@ -53,6 +53,17 @@ The backend loads config from environment variables:
 
 ---
 
+## 📖 API Documentation
+
+The backend serves an OpenAPI 3.0.3 spec and an interactive Swagger UI:
+
+- **Raw spec:** `http://localhost:8080/api/v1/openapi.yaml`
+- **Swagger UI:** `http://localhost:8080/docs`
+
+The spec at `backend/api/openapi.yaml` is the canonical source. It's embedded at build time via `//go:embed` — no external file dependency at runtime.
+
+---
+
 ## 🧪 Testing & Execution
 
 ### Run Backend Directly:
