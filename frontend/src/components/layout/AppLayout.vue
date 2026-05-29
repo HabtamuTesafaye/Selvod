@@ -16,13 +16,13 @@ defineEmits(['navigate', 'openSettings'])
       @navigate="$emit('navigate', $event)"
     />
 
-    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+    <div class="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
       <AppHeader
         :active-tab="activeTab"
         @open-settings="$emit('openSettings')"
       />
 
-      <main class="flex-1 px-8 py-8">
+      <main class="flex-1 px-8 py-8 min-h-0 overflow-hidden">
         <slot />
       </main>
     </div>

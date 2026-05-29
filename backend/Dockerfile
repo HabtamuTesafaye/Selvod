@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 RUN go build -o selvod ./cmd/selvod
 
-FROM alpine:latest
+FROM alpine:3.20
 RUN apk add --no-cache ffmpeg ca-certificates shadow
 
 # Create a non-privileged user

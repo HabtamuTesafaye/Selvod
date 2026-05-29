@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -28,6 +31,7 @@ type VideoHandler struct {
 	StorageDir   string
 	Cache        *LibraryCache
 	GlobalSecret string
+	configMutex  sync.Mutex
 }
 
 func (h *VideoHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +50,16 @@ func (h *VideoHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New().String()
 	ext := filepath.Ext(header.Filename)
+
+	allowedExts := map[string]bool{
+		".mp4": true, ".mov": true, ".mkv": true, ".webm": true,
+		".mp3": true, ".aac": true, ".wav": true, ".ogg": true, ".flac": true,
+	}
+	if !allowedExts[ext] {
+		http.Error(w, "file type not allowed", http.StatusUnsupportedMediaType)
+		return
+	}
+
 	title := r.FormValue("title")
 	if title == "" {
 		title = header.Filename
@@ -70,8 +84,16 @@ func (h *VideoHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fullPath := filepath.Join(h.StorageDir, uploadPath)
-	if ok, _ := h.Transcoder.IsVideo(r.Context(), fullPath); !ok {
-		h.Storage.Delete(r.Context(), uploadPath)
+	ok, probeErr := h.Transcoder.IsVideo(r.Context(), fullPath)
+	if !ok {
+		if err := h.Storage.Delete(r.Context(), uploadPath); err != nil {
+			slog.Warn("failed to clean up rejected upload", "path", uploadPath, "error", err)
+		}
+		if probeErr != nil {
+			slog.Error("ffprobe probe failed", "path", fullPath, "error", probeErr)
+			http.Error(w, "failed to verify media file", http.StatusInternalServerError)
+			return
+		}
 		http.Error(w, "Security rejection: Invalid or malicious media file", http.StatusUnsupportedMediaType)
 		return
 	}
@@ -95,6 +117,7 @@ func (h *VideoHandler) HandleUpload(w http.ResponseWriter, r *http.Request) {
 	h.Queue.Enqueue(id)
 	h.Hooks.Dispatch(hooks.EventUpload, v)
 
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
 	json.NewEncoder(w).Encode(v)
 }
@@ -116,6 +139,7 @@ func (h *VideoHandler) HandleList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to fetch video list", http.StatusInternalServerError)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"videos": videos,
 		"total":  total,
@@ -129,6 +153,7 @@ func (h *VideoHandler) HandleGet(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "video not found", http.StatusNotFound)
 		return
 	}
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(v)
 }
 
@@ -144,8 +169,12 @@ func (h *VideoHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_ = h.Storage.Delete(r.Context(), filepath.Join("uploads", id+v.OriginalExt))
-	_ = h.Storage.Delete(r.Context(), filepath.Join("libraries", v.LibraryID, "videos", id, "hls"))
+	if err := h.Storage.Delete(r.Context(), filepath.Join("uploads", id+v.OriginalExt)); err != nil {
+		slog.Warn("failed to delete upload file", "id", id, "error", err)
+	}
+	if err := h.Storage.Delete(r.Context(), filepath.Join("libraries", v.LibraryID, "videos", id, "hls")); err != nil {
+		slog.Warn("failed to delete HLS directory", "id", id, "error", err)
+	}
 
 	if err := h.Store.Delete(r.Context(), id); err != nil {
 		http.Error(w, "failed to remove metadata record", http.StatusInternalServerError)
@@ -153,6 +182,24 @@ func (h *VideoHandler) HandleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	h.Hooks.Dispatch(hooks.EventDelete, v)
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *VideoHandler) playbackSecret(ctx context.Context, libraryID string) (string, error) {
+	secret, ok := h.Cache.Get(libraryID)
+	if ok {
+		return secret, nil
+	}
+	keys, err := h.Store.ListLibraryKeys(ctx, libraryID)
+	if err != nil {
+		return "", fmt.Errorf("failed to list library keys: %w", err)
+	}
+	for _, k := range keys {
+		if k.IsActive {
+			h.Cache.Set(libraryID, k.PlaybackSecret, 5*time.Minute)
+			return k.PlaybackSecret, nil
+		}
+	}
+	return "", fmt.Errorf("no active playback keys for library %s", libraryID)
 }
 
 func (h *VideoHandler) HandleSign(w http.ResponseWriter, r *http.Request) {
@@ -168,27 +215,10 @@ func (h *VideoHandler) HandleSign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch dynamic secret
-	secret, ok := h.Cache.Get(v.LibraryID)
-	if !ok {
-		keys, err := h.Store.ListLibraryKeys(r.Context(), v.LibraryID)
-		if err != nil {
-			http.Error(w, "database error", http.StatusInternalServerError)
-			return
-		}
-		var activeKey *store.LibraryKey
-		for _, k := range keys {
-			if k.IsActive {
-				activeKey = k
-				break
-			}
-		}
-		if activeKey == nil {
-			http.Error(w, "no active playback keys for library", http.StatusBadRequest)
-			return
-		}
-		secret = activeKey.PlaybackSecret
-		h.Cache.Set(v.LibraryID, secret, 5*time.Minute)
+	secret, err := h.playbackSecret(r.Context(), v.LibraryID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	signed, err := h.Signer.Sign(v.LibraryID, id, secret, 2*time.Hour)
@@ -198,6 +228,7 @@ func (h *VideoHandler) HandleSign(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate")
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(signed)
 }
 
@@ -214,27 +245,10 @@ func (h *VideoHandler) HandleEmbed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Fetch dynamic secret
-	secret, ok := h.Cache.Get(v.LibraryID)
-	if !ok {
-		keys, err := h.Store.ListLibraryKeys(r.Context(), v.LibraryID)
-		if err != nil {
-			http.Error(w, "database error", http.StatusInternalServerError)
-			return
-		}
-		var activeKey *store.LibraryKey
-		for _, k := range keys {
-			if k.IsActive {
-				activeKey = k
-				break
-			}
-		}
-		if activeKey == nil {
-			http.Error(w, "no active playback keys for library", http.StatusBadRequest)
-			return
-		}
-		secret = activeKey.PlaybackSecret
-		h.Cache.Set(v.LibraryID, secret, 5*time.Minute)
+	secret, err := h.playbackSecret(r.Context(), v.LibraryID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
 	// For embeds, we provide a longer duration signed URL (e.g. 24 hours)
@@ -244,6 +258,7 @@ func (h *VideoHandler) HandleEmbed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"url": signed.URL,
 	})
@@ -298,7 +313,10 @@ func (h *VideoHandler) HandleUpdateVideo(w http.ResponseWriter, r *http.Request)
 		newPath := filepath.Join(newParentPath, id)
 
 		// Ensure target directory's parent exists
-		_ = os.MkdirAll(newParentPath, 0755)
+		if err := os.MkdirAll(newParentPath, 0755); err != nil {
+			http.Error(w, "failed to create target directory", http.StatusInternalServerError)
+			return
+		}
 
 		// Rename directory if old exists
 		if _, err := os.Stat(oldPath); err == nil {
@@ -320,16 +338,4 @@ func (h *VideoHandler) HandleUpdateVideo(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(v)
 }
 
-func getRemoteIP(r *http.Request) string {
-	remoteIP := r.Header.Get("X-Real-IP")
-	if remoteIP == "" {
-		remoteIP = r.Header.Get("X-Forwarded-For")
-	}
-	if remoteIP == "" {
-		remoteIP = r.RemoteAddr
-		if strings.Contains(remoteIP, ":") {
-			remoteIP = strings.Split(remoteIP, ":")[0]
-		}
-	}
-	return remoteIP
-}
+

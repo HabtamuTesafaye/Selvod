@@ -14,7 +14,10 @@ const emit = defineEmits(['confirm', 'cancel'])
 </script>
 
 <template>
-  <div v-if="isOpen" class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/15 backdrop-blur-[2px]">
+  <div
+    v-if="isOpen"
+    class="fixed inset-0 z-[250] flex items-center justify-center p-4 bg-slate-900/15 backdrop-blur-[2px]"
+  >
     <div class="bg-white dark:bg-[#1a1d24] rounded-2xl p-6 w-full max-w-sm border border-slate-200 dark:border-[#2d3139] shadow-2xl transform transition-all">
       <div class="flex items-start gap-4 mb-4">
         <!-- Reusable Icon Box based on Type -->
@@ -26,31 +29,41 @@ const emit = defineEmits(['confirm', 'cancel'])
             'bg-primary/10 text-primary'
           ]"
         >
-          <AlertTriangle v-if="type === 'danger' || type === 'warning'" class="w-6 h-6" />
-          <Info v-else class="w-6 h-6" />
+          <AlertTriangle
+            v-if="type === 'danger' || type === 'warning'"
+            class="w-6 h-6"
+          />
+          <Info
+            v-else
+            class="w-6 h-6"
+          />
         </div>
         
         <div class="flex-1 min-w-0">
-          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-0.5">{{ title }}</h3>
-          <p class="text-sm text-slate-500 dark:text-slate-400">{{ description }}</p>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-0.5">
+            {{ title }}
+          </h3>
+          <p class="text-sm text-slate-500 dark:text-slate-400">
+            {{ description }}
+          </p>
         </div>
       </div>
 
       <div class="flex gap-3 justify-end mt-6">
         <button 
-          @click="emit('cancel')" 
-          class="px-4 py-2 border border-slate-200 dark:border-[#2d3139] text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-[#2d3139] text-sm font-medium transition-colors cursor-pointer"
+          class="px-4 py-2 border border-slate-200 dark:border-[#2d3139] text-slate-600 dark:text-slate-300 rounded-xl hover:bg-slate-50 dark:hover:bg-[#2d3139] text-sm font-medium transition-colors cursor-pointer" 
+          @click="emit('cancel')"
         >
           {{ cancelText }}
         </button>
         <button 
-          @click="emit('confirm')" 
           :class="[
             'px-4 py-2 text-white rounded-xl text-sm font-medium transition-colors cursor-pointer shadow-sm',
             type === 'danger' ? 'bg-rose-600 hover:bg-rose-700 shadow-rose-600/20' :
             type === 'warning' ? 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/20' :
             'bg-primary hover:bg-primary/90 shadow-primary/20'
-          ]"
+          ]" 
+          @click="emit('confirm')"
         >
           {{ confirmText }}
         </button>

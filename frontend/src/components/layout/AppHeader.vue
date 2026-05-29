@@ -17,7 +17,11 @@ defineEmits(['openSettings'])
 
     <div class="flex items-center gap-4">
       <ThemeToggle />
-      <button @click="$emit('openSettings')" class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2d3139]/50 rounded-lg transition-colors cursor-pointer" title="System Settings">
+      <button
+        class="p-2 text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#2d3139]/50 rounded-lg transition-colors cursor-pointer"
+        title="System Settings"
+        @click="$emit('openSettings')"
+      >
         <Settings class="w-5 h-5" />
       </button>
     </div>

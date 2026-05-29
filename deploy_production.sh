@@ -27,7 +27,7 @@ if grep -E "local-dev-secret-key-12345|local-admin-key-abcde|local-playback-key-
 fi
 
 if [ $HAS_INSECURE_KEYS -eq 1 ]; then
-    echo -e " ${YELLOW}⚠️ WARNING:${NC} Insecure or default placeholder keys detected in your .env file."
+    echo -e " ${YELLOW} WARNING:${NC} Insecure or default placeholder keys detected in your .env file."
     
     AUTO_GENERATE=0
     if [ -t 0 ]; then
@@ -79,11 +79,45 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-# 4. Launch Production Stack
+# 4. Snapshot current image tags before building (for rollback)
+echo -e " ${BOLD}→${NC} Saving current image tags for rollback..."
+BACKEND_IMAGE="selvod-backend"
+NGINX_IMAGE="selvod-nginx"
+docker tag "$BACKEND_IMAGE:latest" "$BACKEND_IMAGE:rollback" 2>/dev/null || true
+docker tag "$NGINX_IMAGE:latest" "$NGINX_IMAGE:rollback" 2>/dev/null || true
+
+# 5. Launch Production Stack
 echo -e " ${BOLD}→${NC} Starting Production Containers..."
 docker compose up -d --build
+
 if [ $? -ne 0 ]; then
     echo -e " ${RED}✖${NC} Docker Compose failed to spin up. Aborting production deployment."
+    docker tag "$BACKEND_IMAGE:rollback" "$BACKEND_IMAGE:latest" 2>/dev/null || true
+    docker tag "$NGINX_IMAGE:rollback" "$NGINX_IMAGE:latest" 2>/dev/null || true
+    docker compose up -d
+    exit 1
+fi
+
+# 6. Health check — wait for the stack to become responsive
+echo -e " ${BOLD}→${NC} Waiting for health check..."
+HEALTH_OK=0
+for i in $(seq 1 30); do
+    if curl -sf http://localhost:18080/health > /dev/null 2>&1; then
+        echo -e " ${GREEN}✔${NC} Backend is healthy."
+        HEALTH_OK=1
+        break
+    fi
+    sleep 2
+done
+
+# 7. Rollback on failure — if the new stack fails, redeploy the previous image
+if [ "$HEALTH_OK" -ne 1 ]; then
+    echo -e " ${RED}✖${NC} Backend did not become healthy within 60s."
+    echo -e " ${YELLOW}!${NC} Rolling back to previous image..."
+    docker tag "$BACKEND_IMAGE:rollback" "$BACKEND_IMAGE:latest" 2>/dev/null || true
+    docker tag "$NGINX_IMAGE:rollback" "$NGINX_IMAGE:latest" 2>/dev/null || true
+    docker compose up -d
+    echo -e " ${RED}✖${NC} Deployment failed. Check logs: docker compose logs"
     exit 1
 fi
 

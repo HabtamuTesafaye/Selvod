@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   Library,
   BarChart3,
-  Radio,
+  Palette,
   Activity,
   Settings,
   HelpCircle,
@@ -21,7 +21,7 @@ const mainLinks = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'library', label: 'Content Library', icon: Library },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
-  { id: 'live', label: 'Live Streams', icon: Radio },
+  { id: 'player-ui', label: 'Player UI', icon: Palette },
   { id: 'health', label: 'System Health', icon: Activity },
   { id: 'settings', label: 'Settings', icon: Settings },
 ]
@@ -40,7 +40,9 @@ const bottomLinks = [
           S
         </div>
         <div>
-          <h1 class="font-bold text-slate-900 dark:text-white leading-tight">Selvod</h1>
+          <h1 class="font-bold text-slate-900 dark:text-white leading-tight">
+            Selvod
+          </h1>
           <span class="text-xs text-slate-500 dark:text-slate-400 font-medium">VOD Admin</span>
         </div>
       </div>

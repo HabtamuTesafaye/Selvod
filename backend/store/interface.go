@@ -67,4 +67,6 @@ type Store interface {
 	RevokeLibraryKey(ctx context.Context, id string) error
 	RegenerateLibraryKey(ctx context.Context, id string, newSecret string) error
 	DeleteLibraryKey(ctx context.Context, id string) error
+
+	Close() error
 }
